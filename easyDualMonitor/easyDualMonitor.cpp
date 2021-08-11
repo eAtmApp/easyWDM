@@ -14,7 +14,7 @@ using namespace easy;
 
 #define MID_DESKTOP 1
 #define MID_RUN 2
-#define MID_HOOK_WND 3
+#define MID_MOVE_WND 3
 #define MID_LIMIT 4
 
 struct _CONFIG_INFO
@@ -109,22 +109,22 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
 			}
 			cfg.saveConfig();
 		});
-	tray.add_menu("启用[窗口转移]", MID_HOOK_WND, [&]()
+	tray.add_menu("启用[窗口转移]", MID_MOVE_WND, [&]()
 		{
-			if (tray.is_menu_checked(MID_HOOK_WND))
+			if (tray.is_menu_checked(MID_MOVE_WND))
 			{
 				dualMon.hookWnd(false);
-				tray.set_menu_checked(MID_HOOK_WND, false);
+				tray.set_menu_checked(MID_MOVE_WND, false);
 				cfg.move_windows = false;
 			}
 			else {
 				dualMon.hookWnd(true);
-				tray.set_menu_checked(MID_HOOK_WND, true);
+				tray.set_menu_checked(MID_MOVE_WND, true);
 				cfg.move_windows = true;
 			}
 			cfg.saveConfig();
 		});
-	tray.add_menu("启用[限制鼠标]", MID_LIMIT, [&]()
+	tray.add_menu("启用[鼠标限制]", MID_LIMIT, [&]()
 		{
 			if (tray.is_menu_checked(MID_LIMIT))
 			{
@@ -174,7 +174,7 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
 	{
 		if (dualMon.hookWnd(true))
 		{
-			tray.set_menu_checked(MID_HOOK_WND, true);
+			tray.set_menu_checked(MID_MOVE_WND, true);
 		}
 		else {
 			cfg.move_windows = false;

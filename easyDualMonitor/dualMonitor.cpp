@@ -220,7 +220,9 @@ HWND _last_wnd = nullptr;
 //是否按下了控制按键
 inline bool is_DownControlKey()
 {
-	return (GetAsyncKeyState(VK_CONTROL) & 0x8000) || (GetAsyncKeyState(VK_MENU) & 0x8000);
+	return (GetAsyncKeyState(VK_CONTROL) & 0x8000)
+		|| (GetAsyncKeyState(VK_MENU) & 0x8000)
+		|| (GetAsyncKeyState(VK_RBUTTON) & 0x8000);
 }
 
 LRESULT CALLBACK dualMonitor::mouseProc(int nCode, WPARAM wParam, LPARAM lParam)
