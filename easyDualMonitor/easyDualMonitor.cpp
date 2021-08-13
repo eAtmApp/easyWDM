@@ -16,35 +16,38 @@ using namespace easy;
 #define MID_RUN 2
 #define MID_MOVE_WND 3
 #define MID_LIMIT 4
+#define MID_AUTO_RUN 5
+
+static constexpr auto app_name = "easyWDM";
 
 struct _CONFIG_INFO
 {
-	bool show_desktop = true;
-	bool show_run = true;
+	bool show_desktop = false;
 	bool limit_mouse = true;
 	bool move_windows = true;
+	bool autorun = false;
 
 	void readConfig()
 	{
 		jsoncpp json;
 		set_json(show_desktop);
-		set_json(show_run);
 		set_json(limit_mouse);
 		set_json(move_windows);
+		set_json(autorun);
 		json.readConfig();
-		
+
 		get_json_bool(show_desktop);
-		get_json_bool(show_run);
 		get_json_bool(limit_mouse);
 		get_json_bool(move_windows);
+		get_json_bool(autorun);
 	}
 	bool saveConfig()
 	{
 		jsoncpp json;
 		set_json(show_desktop);
-		set_json(show_run);
 		set_json(limit_mouse);
 		set_json(move_windows);
+		set_json(autorun);
 		return json.writeConfig();
 	}
 };
@@ -54,146 +57,123 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
 	_In_ LPSTR    lpCmdLine,
 	_In_ int       nCmdShow)
 {
-	tray_icon tray(IDI_TRAYICONDEMO, "easyWDM");
+	eStringV svCmd(lpCmdLine ? lpCmdLine : "");
+
+	if (process.exe_name().compare_icase("startMenu") || svCmd.compare_icase("startMenu"))
+	{
+		dualMonitor::show_StartMenu();
+		return 0;
+	}
+
+	process.set_app_name(app_name);
+
+	tray_icon tray(IDI_TRAYICONDEMO, app_name);
 
 	_CONFIG_INFO cfg;
 
 	cfg.readConfig();
-	
+
 	dualMonitor dualMon(tray);
 
 	//防止重复运行
 	{
-		auto hMutex = ::CreateMutex(nullptr, FALSE, "easy Dual Monitor");
-		if (hMutex && GetLastError() == ERROR_ALREADY_EXISTS)
+		if (process.is_already_run())
 		{
 			::MessageBoxA(::GetDesktopWindow(), "此程序不允许重复运行!", "easy Dual Monitor", MB_OK | MB_ICONWARNING);
 			return 1;
 		}
 	}
 
-	auto showDesktop_ = std::bind(&dualMonitor::ShowDisktop, &dualMon);
-	auto showRunDlg_ = std::bind(&dualMonitor::ShowRunDlg, &dualMon);
-	
-	tray.add_menu("启用[显示桌面]", MID_DESKTOP, [&]()
+	tray.AddMenu("替换[Win+D]", MID_DESKTOP, [&]()
 		{
-			if (tray.is_menu_checked(MID_DESKTOP))
+			bool enable = !tray.GetCheck();
+
+			if (dualMon.replace_ShowDesktop(enable))
 			{
-				tray.set_menu_checked(MID_DESKTOP, false);
-				tray.unregister_hotkey(MOD_WIN, 'D');
-				cfg.show_desktop = false;
+				tray.SetCheck(enable);
+				cfg.show_desktop = enable;
+				cfg.saveConfig();
 			}
-			else {
-				if (tray.register_hotkey(MOD_WIN, 'D', showDesktop_))
-				{
-					tray.set_menu_checked(MID_DESKTOP, true);
-					cfg.show_desktop = true;
-				}
-			}
-			cfg.saveConfig();
-		});
-	tray.add_menu("启用[运行窗口]", MID_RUN, [&]()
-		{
-			if (tray.is_menu_checked(MID_RUN))
-			{
-				tray.set_menu_checked(MID_RUN, false);
-				tray.unregister_hotkey(MOD_WIN, 'R');
-				cfg.show_run = false;
-			}
-			else {
-				if (tray.register_hotkey(MOD_WIN, 'R', showRunDlg_))
-				{
-					tray.set_menu_checked(MID_RUN, true);
-					cfg.show_run = true;
-				}
-			}
-			cfg.saveConfig();
-		});
-	tray.add_menu("启用[窗口转移]", MID_MOVE_WND, [&]()
-		{
-			if (tray.is_menu_checked(MID_MOVE_WND))
-			{
-				dualMon.hookWnd(false);
-				tray.set_menu_checked(MID_MOVE_WND, false);
-				cfg.move_windows = false;
-			}
-			else {
-				dualMon.hookWnd(true);
-				tray.set_menu_checked(MID_MOVE_WND, true);
-				cfg.move_windows = true;
-			}
-			cfg.saveConfig();
-		});
-	tray.add_menu("启用[鼠标限制]", MID_LIMIT, [&]()
-		{
-			if (tray.is_menu_checked(MID_LIMIT))
-			{
-				dualMon.limitMouse(false);
-				tray.set_menu_checked(MID_LIMIT, false);
-				cfg.limit_mouse = false;
-			}
-			else {
-				if (dualMon.limitMouse(true))
-				{
-					tray.set_menu_checked(MID_LIMIT, true);
-					cfg.limit_mouse = true;
-				}
-			}
-			cfg.saveConfig();
 		});
 
-	tray.add_separator();
-	tray.add_menu("退出(&X)", [&]()
+	tray.AddMenu("启用[窗口转移]", MID_MOVE_WND, [&]()
+		{
+			auto enable = !tray.GetCheck();
+			if (dualMon.hook_wnd(enable))
+			{
+				tray.SetCheck(enable);
+				cfg.move_windows = enable;
+				cfg.saveConfig();
+			}
+		});
+	tray.AddMenu("启用[鼠标限制]", MID_LIMIT, [&]()
+		{
+			auto enable = !tray.GetCheck();
+			if (dualMon.set_limit_mouse(enable))
+			{
+				tray.SetCheck(enable);
+				cfg.limit_mouse = enable;
+				cfg.saveConfig();
+			}
+		});
+	tray.AddSeparator();
+	tray.AddMenu("开机自动运行", MID_AUTO_RUN, [&]()
+		{
+			bool is_enable = !tray.GetCheck();
+			if (process.set_autorun(is_enable))
+			{
+				tray.SetCheck(is_enable);
+				cfg.autorun = is_enable;
+				cfg.saveConfig();
+			}
+		});
+	tray.AddSeparator();
+	tray.AddMenu("退出(&X)", [&]()
 		{
 			tray.close();
 		});
 
+
 	if (cfg.show_desktop)
 	{
-		if (tray.register_hotkey(MOD_WIN, 'D', showDesktop_))
+		if (dualMon.replace_ShowDesktop(cfg.show_desktop))
 		{
-			tray.set_menu_checked(MID_DESKTOP, true);
+			cfg.show_desktop = true;
+			tray.SetCheck(MID_DESKTOP, true);
 		}
 		else {
 			cfg.show_desktop = false;
 		}
 	}
 
-	if (cfg.show_run)
+
+	if (cfg.move_windows && dualMon.hook_wnd(true))
 	{
-		if (tray.register_hotkey(MOD_WIN, 'R', showRunDlg_))
-		{
-			tray.set_menu_checked(MID_RUN, true);
-		}
-		else {
-			cfg.show_run = false;
-		}
+		tray.SetCheck(MID_MOVE_WND, true);
+	}
+	else {
+		cfg.move_windows = false;
 	}
 
-	if (cfg.move_windows)
-	{
-		if (dualMon.hookWnd(true))
-		{
-			tray.set_menu_checked(MID_MOVE_WND, true);
-		}
-		else {
-			cfg.move_windows = false;
-		}
-	}
 
-	if (cfg.limit_mouse)
+	if (dualMon.set_limit_mouse(cfg.limit_mouse))
 	{
-		if (dualMon.limitMouse(true))
-		{
-			tray.set_menu_checked(MID_LIMIT, true);
-		}
-		else {
-			cfg.limit_mouse = false;
-		}
+		tray.SetCheck(MID_LIMIT, true);
+	}
+	else {
+		cfg.limit_mouse = false;
+	}
+	
+	if (process.set_autorun(cfg.autorun))
+	{
+		tray.SetCheck(MID_AUTO_RUN, cfg.autorun);
+	}
+	else {
+		cfg.autorun = false;
 	}
 
 	cfg.saveConfig();
-	
+
 	tray.run();
 	return 0;
 

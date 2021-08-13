@@ -5,6 +5,7 @@ static constexpr auto WM_EASY_TRAY = WM_USER + 1000;
 
 static constexpr auto wnd_class_name = "easy_trayicon_class";
 
+//任务栏创建消息
 UINT g_uTaskbarRestart;
 
 tray_icon::tray_icon(int res_id, const char* tipText)
@@ -13,9 +14,9 @@ tray_icon::tray_icon(int res_id, const char* tipText)
 {
 	if (res_id)
 	{
-		set_icon(res_id);
+		SetIcon(res_id);
 	}
-	
+
 	m_hMenu = ::CreatePopupMenu();
 	if (!m_hMenu)
 	{
@@ -46,13 +47,15 @@ tray_icon::tray_icon(int res_id, const char* tipText)
 	{
 		throw std::runtime_error("CreateWindow Failed");
 	}
-	
+
 	UpdateWindow(m_hWnd);
+
+	_UpdateTrayIcon();
 }
 
 tray_icon::~tray_icon()
 {
-	delete_tray();
+	DeleteTray();
 
 	if (m_hMenu)
 	{
@@ -60,78 +63,14 @@ tray_icon::~tray_icon()
 	}
 }
 
-void tray_icon::run()
-{
-	update_trayIcon();
 
-	MSG msg;
-	while (GetMessageA(&msg, nullptr, 0, 0))
-	{
-		if (m_hWnd == msg.hwnd)
-		{
-			switch (msg.message)
-			{
-			case WM_EASY_TRAY:
-			case WM_EASY_TRAY + 1:		//托盘消息
-			{
-				if (msg.lParam == WM_RBUTTONUP)
-				{
-					POINT p;
-					GetCursorPos(&p);
-					SetForegroundWindow(msg.hwnd);
-					PopupMenu();
-				}
-				continue;
-			}
-			case WM_HOTKEY:			//处理自定义热键消息
-			{
-				auto item = _map_hotkey_handler.find(msg.wParam);
-				if (item != _map_hotkey_handler.end())
-				{
-					item->second();
-				}
-				continue;
-			}
-			case WM_DESTROY:		//窗口被关闭
-				break;
-			case SPI_SETICONTITLEWRAP:	//资源管理器重启
-				int x = 0;
-				break;
-			}
-
-			//处理自定义消息
-			if (!_map_msg_handler.empty())
-			{
-				auto it = _map_msg_handler.find(msg.message);
-				if (it != _map_msg_handler.end())
-				{
-					it->second(msg.wParam, msg.lParam);
-					continue;
-				}
-			}
-
-			//处理重建托盘
-			if (g_uTaskbarRestart == msg.message)
-			{
-				update_trayIcon(true);
-				continue;
-			}
-		}
-
-
-
-		TranslateMessage(&msg);
-		DispatchMessage(&msg);
-	}
-}
-
-void tray_icon::set_icon(int resid)
+void tray_icon::SetIcon(int resid)
 {
 	_hIcon = LoadIcon(::GetModuleHandleA(nullptr), MAKEINTRESOURCEA(resid));
-	if (_notify.hWnd) update_trayIcon(false);
+	if (_notify.hWnd) _UpdateTrayIcon(false);
 }
 
-void tray_icon::delete_tray()
+void tray_icon::DeleteTray()
 {
 	if (_notify.hWnd)
 	{
@@ -147,10 +86,23 @@ void tray_icon::close()
 
 void tray_icon::set_msg_handler(UINT msg, cb_wm_msg&& handler)
 {
-	_map_msg_handler[msg] = std::move(handler);
+	_cm_msg_union msgunion;
+	msgunion.cb = std::move(handler);
+	_map_msg_handler[msg] = std::move(msgunion);
+}
+void tray_icon::set_msg_handler(UINT msg, cb_wm_msg_np&& handler)
+{
+	_cm_msg_union msgunion;
+	msgunion.cb_mp = std::move(handler);
+	_map_msg_handler[msg] = std::move(msgunion);
 }
 
-bool tray_icon::is_menu_checked(uint32_t id)
+void tray_icon::set_msg_handler(UINT msg)
+{
+	_map_msg_handler.erase(msg);
+}
+
+bool tray_icon::GetCheck(uint32_t id)
 {
 	MENUITEMINFO info;
 	info.cbSize = sizeof(MENUITEMINFO); // must fill up this field
@@ -160,15 +112,12 @@ bool tray_icon::is_menu_checked(uint32_t id)
 	return info.fState & MF_CHECKED;
 }
 
-void tray_icon::set_menu_checked(uint32_t id, bool is_checked)
+void tray_icon::SetCheck(uint32_t id, bool is_checked)
 {
-	ASSERT(::CheckMenuItem(m_hMenu, id, MF_BYCOMMAND | (is_checked ? MF_CHECKED : MF_UNCHECKED)) != -1);
-	//MENUITEMINFO info;
-	//info.cbSize = sizeof(MENUITEMINFO);
-	//::SetMenuItemInfoA(m_hMenu, id, false, &info);
+	VERIFY(::CheckMenuItem(m_hMenu, id, MF_BYCOMMAND | (is_checked ? MF_CHECKED : MF_UNCHECKED)) != -1);
 }
 
-bool tray_icon::register_hotkey(UINT fsModifiers, UINT vk, cb_hotkey&& cb)
+bool tray_icon::RegisterHotkey(UINT fsModifiers, UINT vk, cb_hotkey&& cb)
 {
 	ASSERT(m_hWnd);
 	auto id = MAKELONG(fsModifiers, vk);
@@ -183,14 +132,17 @@ bool tray_icon::register_hotkey(UINT fsModifiers, UINT vk, cb_hotkey&& cb)
 		{
 			throw std::runtime_error("RegisterHotKey Failed");
 		}
+		else {
+			show_err("热键被占用");
+		}
 		return false;
 	}
 }
 
-void tray_icon::unregister_hotkey(UINT fsModifiers, UINT vk)
+bool tray_icon::UnregisterHotkey(UINT fsModifiers, UINT vk)
 {
 	auto id = MAKELONG(fsModifiers, vk);
-	ASSERT(::UnregisterHotKey(m_hWnd, id));
+	return ::UnregisterHotKey(m_hWnd, id);
 }
 
 void tray_icon::PopupMenu()
@@ -198,22 +150,26 @@ void tray_icon::PopupMenu()
 	POINT p;
 	GetCursorPos(&p);
 	SetForegroundWindow(m_hWnd);
-	uint32_t cmd = ::TrackPopupMenu(m_hMenu, TPM_RETURNCMD | TPM_NONOTIFY | TPM_BOTTOMALIGN, p.x, p.y, 0, m_hWnd, nullptr);
-	if (cmd == 0) return;
+	_last_cmd = ::TrackPopupMenu(m_hMenu, TPM_RETURNCMD | TPM_NONOTIFY | TPM_BOTTOMALIGN, p.x, p.y, 0, m_hWnd, nullptr);
+	if (_last_cmd == 0) return;
 
-	auto cur = _map_menu_handler.find(cmd);
+	auto cur = _map_menu_handler.find(_last_cmd);
+
 	if (cur != _map_menu_handler.end())
 	{
 		cur->second();
 	}
 	else {
-		if (_cb_items_click) _cb_items_click(cmd);
+		if (_cb_items_click)
+		{
+			_cb_items_click(_last_cmd);
+		}
 	}
 }
 
-void tray_icon::update_trayIcon(bool isReset)
+void tray_icon::_UpdateTrayIcon(bool isReset)
 {
-	if (isReset) delete_tray();
+	if (isReset) DeleteTray();
 
 	auto opType = NIM_ADD;
 	if (_notify.hWnd)
@@ -241,7 +197,7 @@ void tray_icon::update_trayIcon(bool isReset)
 
 void tray_icon::show_err(const char* str)
 {
-	_notify.uFlags = NIF_ICON | NIF_MESSAGE| NIF_INFO;
+	_notify.uFlags = NIF_ICON | NIF_MESSAGE | NIF_INFO;
 	strcpy_s(_notify.szInfo, sizeof(_notify.szInfo), str);
 	_notify.uTimeout = 10000;
 	_notify.dwInfoFlags = NIIF_ERROR;
@@ -260,25 +216,68 @@ LRESULT CALLBACK tray_icon::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPAR
 {
 	switch (message)
 	{
-	case WM_EASY_TRAY:		//托盘消息
-	{
-		if (lParam == WM_RBUTTONUP)
-		{
-			PostMessageA(hWnd, WM_EASY_TRAY + 1, wParam, lParam);
-		}
-		return 0;
-	}
-	case WM_DESTROY:
-		PostQuitMessage(0);
-		break;
-	default:
-		if (message == g_uTaskbarRestart)
-		{
-			PostMessageA(hWnd, g_uTaskbarRestart, wParam, lParam);
-			return 0;
-		}
-		return DefWindowProc(hWnd, message, wParam, lParam);
+		case WM_DESTROY:
+			PostQuitMessage(0);
+			break;
+		default:
+			if (message == g_uTaskbarRestart
+				|| message == WM_DISPLAYCHANGE
+				|| (message == WM_EASY_TRAY && lParam == WM_RBUTTONUP)
+				)
+			{
+				PostMessageA(hWnd, message, wParam, lParam);
+				return 0;
+			}
+			return DefWindowProc(hWnd, message, wParam, lParam);
 	}
 
 	return 0;
+}
+
+void tray_icon::run()
+{
+	MSG msg;
+	while (GetMessageA(&msg, nullptr, 0, 0))
+	{
+		if (m_hWnd == msg.hwnd)
+		{
+			//托盘消息
+			if (msg.message == WM_EASY_TRAY && msg.lParam == WM_RBUTTONUP)	//托盘右键菜单
+			{
+				POINT p;
+				GetCursorPos(&p);
+				SetForegroundWindow(msg.hwnd);
+				PopupMenu();
+				continue;
+			}
+			else if (msg.message == WM_HOTKEY)							//热键消息
+			{
+				auto item = _map_hotkey_handler.find(msg.wParam);
+				if (item != _map_hotkey_handler.end())
+				{
+					item->second();
+					continue;
+				}
+			}
+			else if (msg.message == g_uTaskbarRestart)				//处理重建托盘
+			{
+				_UpdateTrayIcon(true);
+				continue;
+			}
+
+			//处理自定义消息
+			if (!_map_msg_handler.empty())
+			{
+				auto it = _map_msg_handler.find(msg.message);
+				if (it != _map_msg_handler.end())
+				{
+					it->second(msg.wParam, msg.lParam);
+					continue;
+				}
+			}
+		}
+
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
+	}
 }
