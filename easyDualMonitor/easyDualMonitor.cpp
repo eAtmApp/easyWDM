@@ -154,8 +154,7 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
 	else {
 		cfg.move_windows = false;
 	}
-
-
+	
 	if (dualMon.set_limit_mouse(cfg.limit_mouse))
 	{
 		tray.SetCheck(MID_LIMIT, true);
