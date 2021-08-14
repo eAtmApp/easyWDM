@@ -112,6 +112,7 @@
       <ConformanceMode>false</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -144,6 +145,7 @@
       <ConformanceMode>false</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -153,17 +155,23 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="dualMonitor.h" />
+    <ClInclude Include="dmfun.h" />
+    <ClInclude Include="easyWDM.h" />
     <ClInclude Include="framework.h" />
+    <ClInclude Include="helper.hpp" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="easyDualMonitor.h" />
     <ClInclude Include="tray_icon.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="dualMonitor.cpp" />
+    <ClCompile Include="dmfun.cpp" />
     <ClCompile Include="easyDualMonitor.cpp" />
+    <ClCompile Include="easyWDM.cpp" />
+    <ClCompile Include="KeyHookProc.cpp" />
+    <ClCompile Include="MouseHookProc.cpp" />
     <ClCompile Include="tray_icon.cpp" />
+    <ClCompile Include="WndHookProc.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="easyDualMonitor.rc" />

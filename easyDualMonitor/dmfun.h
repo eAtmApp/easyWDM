@@ -5,29 +5,32 @@
 #include <map>
 
 class tray_icon;
-class dualMonitor
+class dmfun
 {
 public:
-	dualMonitor(tray_icon& tray);
-	~dualMonitor();
+	dmfun(tray_icon& tray);
+	~dmfun();
 
 	bool	replace_ShowDesktop(bool enable);
 
 	bool	replace_ShowRun(bool enable);
 
 	void	ShowRunDlg();
-	
-	void	ShowDisktop();
-	
-	bool	hook_wnd(bool is_enable);
-	
-	bool	set_limit_mouse(bool is_enable);
-	
-	static void	show_StartMenu();
 
-	bool	installMouseHook();
-private:
-	
+	void	ShowDisktop();
+
+	bool	hook_wnd(bool is_enable);
+
+	bool	set_limit_mouse(bool is_enable);
+
+	static bool	show_StartMenu();
+
+	bool	_installMouseHook();
+	bool	_uninstallMouseHook();
+
+	bool	_installKeyHook();
+public:
+
 	//得到鼠标下的窗口句柄
 	static HWND	_GetCursorWnd();
 
@@ -35,13 +38,13 @@ private:
 
 	//激活窗口
 	static void	activeWnd(HWND hWnd);
-	
+
 	bool	modify_explorer_hotkey(const char* key, bool enable);
 
 	void	WndHookProc(HWND hWnd, bool isCreate);
 
 	void	show_error(const char* str);
-	
+
 	//取得桌面句柄
 	HWND GetDesktopWnd();
 
@@ -68,9 +71,13 @@ private:
 		EWM_MBUTTONUP = 0x0208,
 		EWM_MBUTTONDBLCLK = 0x0209
 	};
-	static bool	DispatchMouseEvent(_MOUSE_BUTTON button,POINT pt);
+
+	static bool	DispatchMouseEvent(_MOUSE_BUTTON button, POINT pt);
+
+	static bool	DispatchKeyEvent(UINT key, KBDLLHOOKSTRUCT* pHook);
 
 	static LRESULT CALLBACK MouseHookProc(int nCode, WPARAM wParam, LPARAM lParam);
+	static LRESULT CALLBACK KeyHookProc(int nCode, WPARAM wParam, LPARAM lParam);
 
 	static std::string getWndClass(HWND hWnd)
 	{
@@ -91,7 +98,8 @@ private:
 
 private:
 	inline static HHOOK	_hookMouse = nullptr;
-	
+	inline static HHOOK	_hookKey = nullptr;
+
 	std::map<HWND, DWORD> _mapWndTick;
 
 	tray_icon& _tray;

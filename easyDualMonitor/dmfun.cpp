@@ -1,4 +1,4 @@
-#include "dualMonitor.h"
+#include "dmfun.h"
 #include "tray_icon.h"
 #include <thread>
 #include <dwmapi.h>
@@ -32,7 +32,7 @@ inline bool is_DownKey(UINT key)
 	return (GetAsyncKeyState(key) & 0x8000);
 }
 
-bool dualMonitor::DispatchMouseEvent(_MOUSE_BUTTON button, POINT pt)
+bool dmfun::DispatchMouseEvent(_MOUSE_BUTTON button, POINT pt)
 {
 	//当前限制区域
 	static RECT g_limit_rect = { 0 };
@@ -41,45 +41,47 @@ bool dualMonitor::DispatchMouseEvent(_MOUSE_BUTTON button, POINT pt)
 
 	static HWND s_wnd_lock = nullptr;
 
+	//处理鼠标中键-Alt+中键 记住窗口,Ctrl+中键 恢复记住窗口
 	if (button == EWM_MBUTTONDOWN)
 	{
-		if (is_DownKey(VK_CONTROL))
+		if (is_DownKey(VK_MENU))
 		{
 			s_wnd_lock = _GetCursorTopWnd();
 			//console.log("CLASS:{:08X}-{}", (DWORD)tmp, getWndClass(tmp));
 			//ShowWindow(s_wnd_lock, SW_MINIMIZE);
 		}
-		else {
-			if (s_wnd_lock)
+		else if (is_DownKey(VK_CONTROL) && s_wnd_lock)
+		{
+			auto clsname = getWndClass(_GetCursorWnd());
+
+			console.log("CLASS: {}", clsname);
+
+			//排队在任务栏窗口列表中按中键
+			if (clsname != "MSTaskListWClass" && clsname != "MSTaskSwWClass")
 			{
-				auto clsname = getWndClass(_GetCursorWnd());
-
-				console.log("CLASS: {}", clsname);
-
-				//排队在任务栏窗口列表中按中键
-				if (clsname != "MSTaskListWClass" && clsname != "MSTaskListWClass")
+				if (IsIconic(s_wnd_lock))
 				{
-					if (IsIconic(s_wnd_lock))
-					{
-						ShowWindow(s_wnd_lock, SW_SHOWNOACTIVATE);
-					}
-					activeWnd(s_wnd_lock);
-					return true;
+					ShowWindow(s_wnd_lock, SW_SHOWNOACTIVATE);
 				}
+				activeWnd(s_wnd_lock);
+				return true;
 			}
+
 		}
+
 	}
 
 	if (button == EWM_LBUTTONDOWN) s_lbutton_is_down = true;
 	else if (button == EWM_LBUTTONUP) s_lbutton_is_down = false;
 
 	//按住左键,单击右键-临时开关鼠标限制
-	if (g_enable_mouse_limit && button == EWM_RBUTTONUP && s_lbutton_is_down)
+	if (g_enable_mouse_limit && button == EWM_RBUTTONDOWN && s_lbutton_is_down)
 	{
 		g_temp_close_limit = !g_temp_close_limit;
 		console.log("临时{}鼠标限制", g_temp_close_limit);
 
 		if (g_temp_close_limit) ::ClipCursor(nullptr);
+		return true;
 	}
 
 	//是否开启鼠标限制 并且 没有被临时关闭
@@ -127,19 +129,6 @@ bool dualMonitor::DispatchMouseEvent(_MOUSE_BUTTON button, POINT pt)
 	return false;
 }
 
-LRESULT CALLBACK dualMonitor::MouseHookProc(int nCode, WPARAM wParam, LPARAM lParam)
-{
-	if (nCode < 0 || !wParam || !lParam) return CallNextHookEx(_hookMouse, nCode, wParam, lParam);
-
-	if (DispatchMouseEvent((_MOUSE_BUTTON)wParam, ((MOUSEHOOKSTRUCT*)lParam)->pt))
-	{
-		return true;
-	}
-	else {
-		return CallNextHookEx(_hookMouse, nCode, wParam, lParam);
-	}
-}
-
 static bool IsInvisibleWin10BackgroundAppWindow(HWND hWnd)
 {
 	int CloakedVal;
@@ -148,12 +137,12 @@ static bool IsInvisibleWin10BackgroundAppWindow(HWND hWnd)
 	return CloakedVal ? true : false;
 }
 
-void dualMonitor::ShowRunDlg()
+void dmfun::ShowRunDlg()
 {
 	//不在主线程显示对话框
 	if (::GetCurrentThreadId() == ::GetWindowThreadProcessId(_tray.GetWnd(), nullptr))
 	{
-		std::thread thread_(&dualMonitor::ShowRunDlg, this);
+		std::thread thread_(&dmfun::ShowRunDlg, this);
 		thread_.detach();
 		return;
 	}
@@ -183,7 +172,7 @@ void dualMonitor::ShowRunDlg()
 	::DestroyWindow(hSBWnd);
 	return;
 }
-void dualMonitor::ShowDisktop()
+void dmfun::ShowDisktop()
 {
 	struct _WND_RC
 	{
@@ -293,7 +282,7 @@ void dualMonitor::ShowDisktop()
 	}
 }
 
-void dualMonitor::activeWnd(HWND hWnd)
+void dmfun::activeWnd(HWND hWnd)
 {
 	if (hWnd == nullptr) return;
 
@@ -310,7 +299,7 @@ void dualMonitor::activeWnd(HWND hWnd)
 	AttachThreadInput(dwCurID, dwForeID, FALSE);
 }
 
-bool dualMonitor::hook_wnd(bool is_enable)
+bool dmfun::hook_wnd(bool is_enable)
 {
 	if (is_enable)
 	{
@@ -359,8 +348,16 @@ bool dualMonitor::hook_wnd(bool is_enable)
 
 	return true;
 }
-bool dualMonitor::set_limit_mouse(bool is_enable)
+bool dmfun::set_limit_mouse(bool is_enable)
 {
+	if (is_enable)
+	{
+		if (!_installMouseHook()) return false;
+	}
+	else {
+		if (!_uninstallMouseHook()) return false;
+	}
+
 	g_enable_mouse_limit = is_enable;
 	g_limit_is_set_rect = false;
 	g_temp_close_limit = false;
@@ -369,9 +366,10 @@ bool dualMonitor::set_limit_mouse(bool is_enable)
 	return true;
 }
 
-void dualMonitor::show_StartMenu()
+bool dmfun::show_StartMenu()
 {
 	HWND hStartWnd = GetCurrentMonitorStartMenuWnd();
+	if (!hStartWnd) return false;
 
 	HWND hWnd = GetParent(hStartWnd);
 	HWND hForeWnd;
@@ -393,31 +391,103 @@ void dualMonitor::show_StartMenu()
 	PostMessageA(hStartWnd, WM_LBUTTONDOWN, 0, MAKELONG(30, 30));
 	PostMessageA(hStartWnd, WM_LBUTTONUP, 0, MAKELONG(30, 30));
 
+	return true;
 }
 
-bool dualMonitor::installMouseHook()
+bool dmfun::_installMouseHook()
 {
-	_hookMouse = SetWindowsHookExA(WH_MOUSE_LL, MouseHookProc, ::GetModuleHandleA(nullptr), NULL);
-	if (_hookMouse != nullptr)
+	if (_hookMouse==nullptr)
 	{
-		_tray.set_msg_handler(WM_DISPLAYCHANGE, [&]()
-			{
-				//此消息为监视分变率变更,增减显示器时也将引发此消息
-				g_limit_is_set_rect = false;
-
-				//切换显示器时需要清空窗口列表
-				_mapWndTick.clear();
-			});
+		_hookMouse = SetWindowsHookExA(WH_MOUSE_LL, MouseHookProc, ::GetModuleHandleA(nullptr), NULL);
+		if (!_hookMouse)
+		{
+			auto errstr = fmt::format("SetWindowsHookEx Failure,err code:{}", GetLastError());
+			show_error(errstr.c_str());
+		}
+		return _hookMouse != nullptr;
 	}
 	else {
-		auto errstr = fmt::format("SetWindowsHookEx Failure,err code:{}", GetLastError());
-		show_error(errstr.c_str());
+		return true;
 	}
-
-	return _hookMouse != nullptr;
 }
 
-void dualMonitor::WndHookProc(HWND hWnd, bool isCreate)
+bool dmfun::_uninstallMouseHook()
+{
+	if (_hookMouse)
+	{
+		if (!UnhookWindowsHookEx(_hookMouse))
+		{
+			show_error("UnhookWindowsHookEx Failure");
+		}
+		_hookMouse = nullptr;
+		return true;
+	}
+	else {
+		return true;
+	}
+}
+
+LRESULT CALLBACK dmfun::MouseHookProc(int nCode, WPARAM wParam, LPARAM lParam)
+{
+	if (nCode < 0 || !wParam || !lParam) return CallNextHookEx(_hookMouse, nCode, wParam, lParam);
+
+	if (DispatchMouseEvent((_MOUSE_BUTTON)wParam, ((MOUSEHOOKSTRUCT*)lParam)->pt))
+	{
+		return true;
+	}
+	else {
+		return CallNextHookEx(_hookMouse, nCode, wParam, lParam);
+	}
+}
+
+bool dmfun::DispatchKeyEvent(UINT key, KBDLLHOOKSTRUCT* pHook)
+{
+	//开始菜单
+	if (key== WM_KEYUP)
+	{
+		if (pHook->vkCode == VK_LWIN)
+		{
+			show_StartMenu();
+			return true;
+		}
+		//console.log("{}", key);
+	}
+	return false;
+}
+
+
+LRESULT CALLBACK dmfun::KeyHookProc(int nCode, WPARAM wParam, LPARAM lParam)
+{
+	if (nCode < 0 || !wParam || !lParam) return CallNextHookEx(_hookMouse, nCode, wParam, lParam);
+
+	if (DispatchKeyEvent(wParam, (KBDLLHOOKSTRUCT*)lParam))
+	{
+		return true;
+	}
+	else {
+		return CallNextHookEx(_hookKey, nCode, wParam, lParam);
+	}
+}
+
+
+bool dmfun::_installKeyHook()
+{
+	if (_hookKey == nullptr)
+	{
+		_hookKey = SetWindowsHookExA(WH_KEYBOARD_LL, KeyHookProc, ::GetModuleHandleA(nullptr), NULL);
+		if (!_hookKey)
+		{
+			auto errstr = fmt::format("SetWindowsHookEx Failure,err code:{}", GetLastError());
+			show_error(errstr.c_str());
+		}
+		return _hookKey != nullptr;
+	}
+	else {
+		return true;
+	}
+}
+
+void dmfun::WndHookProc(HWND hWnd, bool isCreate)
 {
 	//最后判断这个窗口是否在这个显示器中
 
@@ -539,12 +609,12 @@ void dualMonitor::WndHookProc(HWND hWnd, bool isCreate)
 	console.log("修改位置-相对坐标:{}*{}", (int)(x - monRct.left), (int)(y - monRct.top));
 }
 
-void dualMonitor::show_error(const char* str)
+void dmfun::show_error(const char* str)
 {
 	console.warn("{}", str);
 	_tray.show_err(str);
 }
-HWND dualMonitor::GetDesktopWnd()
+HWND dmfun::GetDesktopWnd()
 {
 	HWND hWnd = ::FindWindowA("Progman", "Program Manager");
 	if (::FindWindowExA(hWnd, nullptr, "SHELLDLL_DefView", nullptr) != nullptr) return hWnd;
@@ -560,7 +630,7 @@ HWND dualMonitor::GetDesktopWnd()
 	show_error("查找桌面句柄失败!");
 	return nullptr;
 }
-HWND dualMonitor::GetCurrentMonitorStartMenuWnd()
+HWND dmfun::GetCurrentMonitorStartMenuWnd()
 {
 	HWND hWnd = nullptr;
 
@@ -599,7 +669,7 @@ HWND dualMonitor::GetCurrentMonitorStartMenuWnd()
 
 	return hWnd;
 }
-HMONITOR dualMonitor::getCurrentMonitor()
+HMONITOR dmfun::getCurrentMonitor()
 {
 	POINT pos = { 0 };
 	if (!GetCursorPos(&pos))
@@ -609,7 +679,7 @@ HMONITOR dualMonitor::getCurrentMonitor()
 	return MonitorFromPoint(pos, MONITOR_DEFAULTTONEAREST);
 }
 
-bool dualMonitor::getCurrentMonitorRecv(RECT* lpRect)
+bool dmfun::getCurrentMonitorRecv(RECT* lpRect)
 {
 	auto hMon = getCurrentMonitor();
 
@@ -624,26 +694,30 @@ bool dualMonitor::getCurrentMonitorRecv(RECT* lpRect)
 	return true;
 }
 
-dualMonitor::dualMonitor(tray_icon& tray)
+dmfun::dmfun(tray_icon& tray)
 	:_tray(tray)
 {
-	//installMouseHook();
-}
-
-dualMonitor::~dualMonitor()
-{
-	if (_hookMouse)
-	{
-		if (!UnhookWindowsHookEx(_hookMouse))
+	//_installMouseHook();
+	
+	_tray.set_msg_handler(WM_DISPLAYCHANGE, [&]()
 		{
-			show_error("UnhookWindowsHookEx Failure");
-		}
-		_tray.set_msg_handler(WM_DISPLAYCHANGE);
-		_hookMouse = nullptr;
-	}
+			//此消息为监视分变率变更,增减显示器时也将引发此消息
+			g_limit_is_set_rect = false;
+
+			//切换显示器时需要清空窗口列表
+			_mapWndTick.clear();
+		});
+
+	_installKeyHook();
+
 }
 
-bool dualMonitor::modify_explorer_hotkey(const char* key, bool enable)
+dmfun::~dmfun()
+{
+	_uninstallMouseHook();
+}
+
+bool dmfun::modify_explorer_hotkey(const char* key, bool enable)
 {
 	auto reg_path = R"(计算机\HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced)";
 	etd::string value, oldvalue;
@@ -684,7 +758,7 @@ bool dualMonitor::modify_explorer_hotkey(const char* key, bool enable)
 	return true;
 }
 
-bool dualMonitor::replace_ShowDesktop(bool enable)
+bool dmfun::replace_ShowDesktop(bool enable)
 {
 	if (!modify_explorer_hotkey("D", enable))
 	{
@@ -693,7 +767,7 @@ bool dualMonitor::replace_ShowDesktop(bool enable)
 
 	if (enable)
 	{
-		if (!_tray.RegisterHotkey(MOD_WIN, 'D', std::bind(&dualMonitor::ShowDisktop, this)))
+		if (!_tray.RegisterHotkey(MOD_WIN, 'D', std::bind(&dmfun::ShowDisktop, this)))
 		{
 			show_error("注册热键失败");
 			return false;
@@ -709,7 +783,7 @@ bool dualMonitor::replace_ShowDesktop(bool enable)
 	return true;
 }
 
-bool dualMonitor::replace_ShowRun(bool enable)
+bool dmfun::replace_ShowRun(bool enable)
 {
 	if (!modify_explorer_hotkey("R", enable))
 	{
@@ -718,7 +792,7 @@ bool dualMonitor::replace_ShowRun(bool enable)
 
 	if (enable)
 	{
-		if (!_tray.RegisterHotkey(MOD_WIN, 'R', std::bind(&dualMonitor::ShowRunDlg, this)))
+		if (!_tray.RegisterHotkey(MOD_WIN, 'R', std::bind(&dmfun::ShowRunDlg, this)))
 		{
 			show_error("注册热键失败");
 			return false;
@@ -734,7 +808,7 @@ bool dualMonitor::replace_ShowRun(bool enable)
 	return true;
 }
 
-HWND dualMonitor::_GetCursorWnd()
+HWND dmfun::_GetCursorWnd()
 {
 	POINT pt;
 	if (GetPhysicalCursorPos(&pt))
@@ -744,7 +818,7 @@ HWND dualMonitor::_GetCursorWnd()
 	return nullptr;
 }
 
-HWND dualMonitor::_GetCursorTopWnd()
+HWND dmfun::_GetCursorTopWnd()
 {
 	HWND hWnd = _GetCursorWnd();
 	HWND hParent = ::GetParent(hWnd);

@@ -19,6 +19,9 @@
     <Filter Include="DualMonitor">
       <UniqueIdentifier>{f9c7d7db-1122-49e9-a34c-df387637ff22}</UniqueIdentifier>
     </Filter>
+    <Filter Include="easyWDM">
+      <UniqueIdentifier>{fb602f6f-ee91-4908-bf56-54e8dc1edd2d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="framework.h">
@@ -33,11 +36,17 @@
     <ClInclude Include="tray_icon.h">
       <Filter>tray_icon</Filter>
     </ClInclude>
-    <ClInclude Include="dualMonitor.h">
+    <ClInclude Include="dmfun.h">
       <Filter>DualMonitor</Filter>
     </ClInclude>
     <ClInclude Include="easyDualMonitor.h">
       <Filter>源文件</Filter>
+    </ClInclude>
+    <ClInclude Include="easyWDM.h">
+      <Filter>easyWDM</Filter>
+    </ClInclude>
+    <ClInclude Include="helper.hpp">
+      <Filter>easyWDM</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -47,8 +56,20 @@
     <ClCompile Include="tray_icon.cpp">
       <Filter>tray_icon</Filter>
     </ClCompile>
-    <ClCompile Include="dualMonitor.cpp">
+    <ClCompile Include="dmfun.cpp">
       <Filter>DualMonitor</Filter>
+    </ClCompile>
+    <ClCompile Include="easyWDM.cpp">
+      <Filter>easyWDM</Filter>
+    </ClCompile>
+    <ClCompile Include="WndHookProc.cpp">
+      <Filter>easyWDM</Filter>
+    </ClCompile>
+    <ClCompile Include="KeyHookProc.cpp">
+      <Filter>easyWDM</Filter>
+    </ClCompile>
+    <ClCompile Include="MouseHookProc.cpp">
+      <Filter>easyWDM</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
