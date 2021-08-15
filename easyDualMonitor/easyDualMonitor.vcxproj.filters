@@ -71,6 +71,9 @@
     <ClCompile Include="MouseHookProc.cpp">
       <Filter>easyWDM</Filter>
     </ClCompile>
+    <ClCompile Include="rawInput.cpp">
+      <Filter>easyWDM</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="easyDualMonitor.rc">
@@ -82,6 +85,9 @@
       <Filter>资源文件</Filter>
     </Image>
     <Image Include="easyDualMonitor.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="easyDualMonitor_lock.ico">
       <Filter>资源文件</Filter>
     </Image>
   </ItemGroup>

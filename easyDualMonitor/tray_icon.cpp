@@ -1,5 +1,7 @@
 #include "tray_icon.h"
 #include <stdexcept>
+#include <easy/easy.h>
+using namespace easy;
 
 static constexpr auto WM_EASY_TRAY = WM_USER + 1000;
 
@@ -12,6 +14,12 @@ tray_icon::tray_icon(int res_id, const char* tipText)
 	:_hIcon(nullptr)
 	, _tipText(tipText ? tipText : "")
 {
+	_atom = ::GlobalAddAtomA(wnd_class_name);
+	if (!_atom)
+	{
+		box.ApiErrorExit("GlobalAddAtomA");
+	}
+
 	if (res_id)
 	{
 		SetIcon(res_id);
@@ -20,13 +28,13 @@ tray_icon::tray_icon(int res_id, const char* tipText)
 	m_hMenu = ::CreatePopupMenu();
 	if (!m_hMenu)
 	{
-		throw std::runtime_error("CreatePopupMenu Failed");
+		box.ApiErrorExit("CreatePopupMenu");
 	}
 
 	g_uTaskbarRestart = RegisterWindowMessageA("TaskbarCreated");
 	if (!g_uTaskbarRestart)
 	{
-		throw std::runtime_error("RegisterWindowMessageA(TaskbarCreated)  Failed");
+		box.ApiErrorExit("RegisterWindowMessageA");
 	}
 
 	memset(&_notify, 0, sizeof(NOTIFYICONDATA));
@@ -39,17 +47,19 @@ tray_icon::tray_icon(int res_id, const char* tipText)
 
 	if (RegisterClassEx(&wcex) == 0)
 	{
-		throw std::runtime_error("RegisterClassEx Failed");
+		box.ApiErrorExit("RegisterClassEx");
 	}
 
 	m_hWnd = ::CreateWindowA(wnd_class_name, _tipText.c_str(), 0, 0, 0, 0, 0, nullptr, nullptr, wcex.hInstance, nullptr);
 	if (!m_hWnd)
 	{
-		throw std::runtime_error("CreateWindow Failed");
+		box.ApiErrorExit("CreateWindowA");
+		return;
 	}
 
 	UpdateWindow(m_hWnd);
 
+	::SetPropA(m_hWnd, wnd_class_name, (HANDLE)this);
 	_UpdateTrayIcon();
 }
 
@@ -217,67 +227,69 @@ LRESULT CALLBACK tray_icon::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPAR
 	switch (message)
 	{
 		case WM_DESTROY:
-			PostQuitMessage(0);
-			break;
-		default:
-			if (message == g_uTaskbarRestart
-				|| message == WM_DISPLAYCHANGE
-				|| (message == WM_EASY_TRAY && lParam == WM_RBUTTONUP)
-				)
-			{
-				PostMessageA(hWnd, message, wParam, lParam);
-				return 0;
-			}
-			return DefWindowProc(hWnd, message, wParam, lParam);
-	}
-
-	return 0;
-}
-
-void tray_icon::run()
-{
-	MSG msg;
-	while (GetMessageA(&msg, nullptr, 0, 0))
-	{
-		if (m_hWnd == msg.hwnd)
 		{
-			//托盘消息
-			if (msg.message == WM_EASY_TRAY && msg.lParam == WM_RBUTTONUP)	//托盘右键菜单
+			::RemovePropA(hWnd, wnd_class_name);
+			::PostQuitMessage(0);
+			break;
+		}
+		default:
+		{
+			auto pThis = (tray_icon*)::GetPropA(hWnd, wnd_class_name);
+			if (pThis && pThis->UserMessage(message, wParam, lParam))
 			{
-				POINT p;
-				GetCursorPos(&p);
-				SetForegroundWindow(msg.hwnd);
-				PopupMenu();
-				continue;
+				return true;
 			}
-			else if (msg.message == WM_HOTKEY)							//热键消息
-			{
-				auto item = _map_hotkey_handler.find(msg.wParam);
-				if (item != _map_hotkey_handler.end())
-				{
-					item->second();
-					continue;
-				}
-			}
-			else if (msg.message == g_uTaskbarRestart)				//处理重建托盘
-			{
-				_UpdateTrayIcon(true);
-				continue;
-			}
+		}
+		}
 
-			//处理自定义消息
-			if (!_map_msg_handler.empty())
+		return DefWindowProc(hWnd, message, wParam, lParam);
+	}
+	bool tray_icon::UserMessage(UINT message, WPARAM wParam, LPARAM lParam)
+	{
+
+		//托盘消息
+		if (message == WM_EASY_TRAY && lParam == WM_RBUTTONUP)	//托盘右键菜单
+		{
+			PopupMenu();
+			return true;
+		}
+		else if (message == WM_HOTKEY)
+		{
+			auto item = _map_hotkey_handler.find(wParam);
+			if (item != _map_hotkey_handler.end())
 			{
-				auto it = _map_msg_handler.find(msg.message);
-				if (it != _map_msg_handler.end())
-				{
-					it->second(msg.wParam, msg.lParam);
-					continue;
-				}
+				item->second();
+				return true;
+			}
+			return true;
+		}
+		else if (message == g_uTaskbarRestart)
+		{
+			_UpdateTrayIcon(true);
+			return true;
+		}
+
+		//处理自定义消息
+		if (!_map_msg_handler.empty())
+		{
+			auto it = _map_msg_handler.find(message);
+			if (it != _map_msg_handler.end())
+			{
+				it->second(wParam, lParam);
+				return true;
 			}
 		}
 
-		TranslateMessage(&msg);
-		DispatchMessage(&msg);
+		return false;
 	}
-}
+
+
+	void tray_icon::run()
+	{
+		MSG msg;
+		while (GetMessageA(&msg, nullptr, 0, 0))
+		{
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
+	}

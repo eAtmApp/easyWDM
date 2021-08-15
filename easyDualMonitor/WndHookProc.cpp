@@ -3,12 +3,14 @@
 
 void easyWDM::WndHookProc(HWND hWnd, bool isCreate)
 {
+	if (!hWnd) return;
 
-	//只转移创建后3秒内显示的窗口
-#define MAX_WAIT_TIME 5
-	static DWORD s_last_clear_tick = (DWORD)(::GetTickCount64() / 1000);
+	//只转移创建后5秒内显示的窗口
+	constexpr auto MAX_WAIT_TIME = 5;
 
-	DWORD dwCurTick = (DWORD)(::GetTickCount64() / 1000);
+	static auto s_last_clear_tick = (DWORD)(::GetTickCount64() / 1000);
+
+	auto dwCurTick = (DWORD)(::GetTickCount64() / 1000);
 
 	if (isCreate)
 	{
@@ -21,7 +23,7 @@ void easyWDM::WndHookProc(HWND hWnd, bool isCreate)
 		DWORD dwCreateTick = it->second;
 		_mapWndTick.erase(hWnd);
 
-		DWORD dwTick = (DWORD)(::GetTickCount64() / 1000);
+		auto dwTick = (DWORD)(::GetTickCount64() / 1000);
 		if (dwCurTick - dwCreateTick > MAX_WAIT_TIME) return;
 	}
 
@@ -46,7 +48,8 @@ void easyWDM::WndHookProc(HWND hWnd, bool isCreate)
 	RECT rct = { 0 };
 	if (!::GetWindowRect(hWnd, &rct)) return;
 
-	if (MonitorFromRect(&rct, MONITOR_DEFAULTTONEAREST) == hMonitor) return;
+	auto wndMonitor = MonitorFromRect(&rct, MONITOR_DEFAULTTONEAREST);
+	if (wndMonitor == hMonitor || wndMonitor==nullptr) return;
 
 	RECT monRct = { 0 };
 	if (!helper::getCurrentMonitorRecv(&monRct)) return;
@@ -64,6 +67,7 @@ void easyWDM::WndHookProc(HWND hWnd, bool isCreate)
 	int x = 0, y = 0;
 
 	//处理运行窗口
+	/*
 	if (wndWidth < 500 && wndWidth >= 400 && wndHeight <= 300 && wndHeight >= 200
 		&& helper::getWndTitle(hWnd) == "运行" && helper::getWndClass(hWnd) == "#32770")
 	{
@@ -94,7 +98,7 @@ void easyWDM::WndHookProc(HWND hWnd, bool isCreate)
 				is_handler = true;
 			}
 		}
-	}
+	}*/
 
 	if (!is_handler)
 	{

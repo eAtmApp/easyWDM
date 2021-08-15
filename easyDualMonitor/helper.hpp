@@ -32,9 +32,13 @@ public:
 
 		HWND hSBWnd = nullptr;
 		hSBWnd = CreateWindowA("Static", nullptr, 0, rct.left, rct.bottom - 300, 300, 300, nullptr, nullptr, (HINSTANCE)::GetModuleHandleA(NULL), NULL);
-		s_RunDlg(hSBWnd, nullptr, nullptr, nullptr, nullptr, 4);
-		::DestroyWindow(hSBWnd);
-		return true;
+		if (hSBWnd)
+		{
+			activeWnd(hSBWnd);
+			s_RunDlg(hSBWnd, nullptr, nullptr, nullptr, nullptr, 4);
+			::DestroyWindow(hSBWnd);
+		}
+		return hSBWnd!=nullptr;
 	}
 
 	static void activeWnd(HWND hWnd)

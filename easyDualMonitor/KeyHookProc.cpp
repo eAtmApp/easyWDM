@@ -41,7 +41,7 @@ bool easyWDM::KeyMessage(UINT uType, KBDLLHOOKSTRUCT* pHook)
 
 	//记录各个组合键真实状态-省去中间取值环节
 	auto down_count = key_status.set_status(uType, uKey);
-	
+
 	//处理热键
 	if (uType == WM_KEYDOWN && ((uKey >= '0' && uKey <= '9') || (uKey >= 'A' && uKey <= 'Z') || (uKey >= VK_F1 && uKey <= VK_F24)))
 	{
@@ -61,14 +61,14 @@ bool easyWDM::KeyMessage(UINT uType, KBDLLHOOKSTRUCT* pHook)
 			}
 		}
 	}
-	
+
 	//过滤win键
 	{
 		static	bool	_is_filter_win = false;
 
 		if (uType == WM_KEYDOWN && !is_handler && _is_filter_win && uKey != VK_LWIN)
 		{
-			console.log("还原++++++++");
+			console.debug("还原WIN");
 			_is_filter_win = false;
 			keybd_event(VK_LWIN, 0, KEYEVENTF_EXTENDEDKEY | 0, 0x3412259);
 			//keybd_event(VK_LWIN, 0, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0);
@@ -81,13 +81,13 @@ bool easyWDM::KeyMessage(UINT uType, KBDLLHOOKSTRUCT* pHook)
 			{
 				_is_filter_win = true;
 				is_handler = true;
-				console.log("过滤--------");
+				console.log("过滤WIN");
 			}
 
 			//弹起重置标志
 			if (uType == WM_KEYUP && _is_filter_win)
 			{
-				console.log("重置========");
+				console.log("重置WIN");
 				_is_filter_win = false;
 				is_handler = true;
 			}
@@ -140,7 +140,7 @@ bool easyWDM::KeyMessage(UINT uType, KBDLLHOOKSTRUCT* pHook)
 	else if (_single_alt.is_event(uType, uKey)) HandlerHotkey(0, _single_alt.listenFlags);
 	else if (_single_shift.is_event(uType, uKey)) HandlerHotkey(0, _single_shift.listenFlags);
 	else if (_single_ctrl.is_event(uType, uKey)) HandlerHotkey(0, _single_ctrl.listenFlags);
-	
+
 	return is_handler;
 }
 

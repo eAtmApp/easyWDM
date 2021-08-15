@@ -113,6 +113,9 @@ public:
 private:
 	//更新图标-是否重置
 	void	_UpdateTrayIcon(bool isReset = false);
+
+	bool UserMessage(UINT message, WPARAM wParam, LPARAM lParam);
+	ATOM _atom = 0;
 private:
 
 	uint32_t	_last_cmd = 0;

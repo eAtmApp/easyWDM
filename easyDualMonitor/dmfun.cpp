@@ -96,7 +96,7 @@ bool dmfun::DispatchMouseEvent(_MOUSE_BUTTON button, POINT pt)
 			if (getCurrentMonitorRecv(&g_limit_rect))
 			{
 				g_limit_rect.right -= 2;
-				console.log("设置了当前显示器");
+				console.debug("设置了当前显示器");
 				g_limit_is_set_rect = true;
 			}
 			else {
@@ -755,56 +755,6 @@ bool dmfun::modify_explorer_hotkey(const char* key, bool enable)
 		return false;
 	}
 
-	return true;
-}
-
-bool dmfun::replace_ShowDesktop(bool enable)
-{
-	if (!modify_explorer_hotkey("D", enable))
-	{
-		return false;
-	}
-
-	if (enable)
-	{
-		if (!_tray.RegisterHotkey(MOD_WIN, 'D', std::bind(&dmfun::ShowDisktop, this)))
-		{
-			show_error("注册热键失败");
-			return false;
-		}
-	}
-	else {
-		if (!_tray.UnregisterHotkey(MOD_WIN, 'D'))
-		{
-			show_error("删除热键失败");
-			return false;
-		}
-	}
-	return true;
-}
-
-bool dmfun::replace_ShowRun(bool enable)
-{
-	if (!modify_explorer_hotkey("R", enable))
-	{
-		return false;
-	}
-
-	if (enable)
-	{
-		if (!_tray.RegisterHotkey(MOD_WIN, 'R', std::bind(&dmfun::ShowRunDlg, this)))
-		{
-			show_error("注册热键失败");
-			return false;
-		}
-	}
-	else {
-		if (!_tray.UnregisterHotkey(MOD_WIN, 'R'))
-		{
-			show_error("删除热键失败");
-			return false;
-		}
-	}
 	return true;
 }
 

@@ -1,5 +1,6 @@
 #include "easyWDM.h"
 #include "helper.hpp"
+#include "Resource.h"
 
 easyWDM::easyWDM(tray_icon& tray)
 	:_tray(tray)
@@ -36,37 +37,23 @@ void easyWDM::UninstallHook()
 bool easyWDM::initConfig()
 {
 	_config["hook_key"] = true;
-	_config["hook_mouse"] = false;
+	_config["hook_mouse"] = true;
 	_config["hook_windows"] = true;
 	_config["hotkey"] = {};
 	auto& win = _config["hotkey"];
 	win["win+c"] = {
 			{"type","open"},
 			{"path","cmd.exe"},
-			{"dir","c:\\"}
+			{"dir","d:\\"}
 	};
 	win["win+z"] = {
 			{"type","open"},
 			{"path","calc.exe"},
 	};
-
 	win["win+e"] = {
 		{"type","open"},
 		{"path","explorer.exe"},
 		{"param","::{20D04FE0-3AEA-1069-A2D8-08002B30309D}"}
-	};
-	win["ctrl"] = {
-		{"type","msg"},
-		{"param","这是ctrl"}
-	};
-	win["ctrl+b"] = {
-		{"type","msg"},
-		{"param","测试左右"}
-	};
-
-	win["alt"] = {
-		{"type","msg"},
-		{"param","这是alt"}
 	};
 
 	if (!_config.readConfig())
@@ -80,6 +67,12 @@ bool easyWDM::initConfig()
 	SetHotkey("win+r", std::bind(helper::ShowRunDlg, false));
 	SetHotkey("win", helper::show_StartMenu);
 	
+	if (_config["hook_mouse"])
+	{
+		SetHotkey("ctrl", std::bind(&easyWDM::set_limit_mouse, this));
+		_tray.SetIcon(IDI_LOCK);
+	}
+
 	jsoncpp& hotkey = _config["hotkey"];
 	hotkey.forEach([&](std::string_view key, jsoncpp& item)
 		{
@@ -152,6 +145,21 @@ bool easyWDM::SetHotkey(std::string hotkey, hotkey_handler&& handler)
 	return true;
 }
 
+bool easyWDM::set_limit_mouse()
+{
+	m_bIs_limit_mouse = !m_bIs_limit_mouse;
+	console.debug("鼠标限制状态:{}", m_bIs_limit_mouse);
+	if (m_bIs_limit_mouse)
+	{
+		_tray.SetIcon(IDI_LOCK);
+	}
+	else {
+		_tray.SetIcon(IDI_TRAYICONDEMO);
+		
+	}
+	return true;
+}
+
 bool easyWDM::initWDM()
 {
 	if (!initConfig()) return false;
@@ -209,6 +217,9 @@ bool easyWDM::initWDM()
 			return false;
 		}
 	}
+
+	//std::thread rawinput(&easyWDM::initRawInput, this);
+	//rawinput.detach();
 
 	return true;
 }

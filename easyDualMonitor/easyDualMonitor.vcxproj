@@ -67,9 +67,11 @@
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\..\..\库文件\项目属性表\全局库文件_x64.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\..\..\库文件\项目属性表\全局库文件_x64.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -170,6 +172,7 @@
     <ClCompile Include="easyWDM.cpp" />
     <ClCompile Include="KeyHookProc.cpp" />
     <ClCompile Include="MouseHookProc.cpp" />
+    <ClCompile Include="rawInput.cpp" />
     <ClCompile Include="tray_icon.cpp" />
     <ClCompile Include="WndHookProc.cpp" />
   </ItemGroup>
@@ -177,6 +180,7 @@
     <ResourceCompile Include="easyDualMonitor.rc" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="easyDualMonitor_lock.ico" />
     <Image Include="small.ico" />
     <Image Include="easyDualMonitor.ico" />
   </ItemGroup>

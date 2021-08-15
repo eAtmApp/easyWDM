@@ -22,11 +22,25 @@ public:
 	bool	initConfig();
 
 	bool	SetHotkey(std::string hotkey, hotkey_handler&& handler);
+
+	void	initRawInput();
 private:
+	static LRESULT CALLBACK RawInputProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+
+	HWND	m_hRawInputWnd = nullptr;
+
+
+	//开启 或 关闭 限制鼠标
+	bool	set_limit_mouse();
+
+	bool	m_bIs_limit_mouse = true;
+
 	void	WndHookProc(HWND hWnd, bool isCreate);
 	std::map<HWND, DWORD> _mapWndTick;
 
 	bool	KeyMessage(UINT uType, KBDLLHOOKSTRUCT* pHook);
+
+	bool	MouseMessage(UINT button, POINT pt);
 
 #define VK_WIN 0xFF
 
