@@ -13,7 +13,7 @@ using namespace easy;
 #include "easyWDM.h"
 
 #pragma comment(lib, EASY_LIB_NAME("easylib"))
-
+//
 #define MID_DESKTOP 1
 #define MID_RUN 2
 #define MID_MOVE_WND 3
