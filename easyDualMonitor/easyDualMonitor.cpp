@@ -11,7 +11,7 @@
 using namespace easy;
 
 #include "easyWDM.h"
-
+//
 #pragma comment(lib, EASY_LIB_NAME("easylib"))
 //
 #define MID_DESKTOP 1
