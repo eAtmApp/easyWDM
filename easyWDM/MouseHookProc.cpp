@@ -1,5 +1,5 @@
+#include "pch.h"
 #include "easyWDM.h"
-#include "helper.hpp"
 
 bool easyWDM::MouseMessage(UINT button, POINT pt)
 {

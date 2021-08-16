@@ -158,12 +158,15 @@ public:
 		if (!vecCur.empty())
 		{
 			vecOld.clear();
+
+			ShowOwnedPopups(nullptr, false);
 			for (auto& wnd : vecCur)
 			{
 				vecOld.push_back({ wnd,(bool)::IsZoomed(wnd) });
 
 				if (!IsWindowVisible(wnd)) continue;
 
+				if (IsIconic(wnd)) continue;
 				ShowOwnedPopups(wnd, false);
 				::ShowWindow(wnd, SW_MINIMIZE);		//最小化窗口
 			}
@@ -174,12 +177,15 @@ public:
 		else {
 			HWND hLastWnd = nullptr;
 
+			ShowOwnedPopups(nullptr, true);
+
 			//还原窗口
 			for (auto& info : vecOld)
 			{
 				if (!::IsWindow(info.wnd)) continue;
 
 				//if (!IsIconic(info.wnd) && IsWindowVisible(info.wnd)) continue;
+				//if (!IsIconic(info.wnd)) continue;
 
 				::ShowWindow(info.wnd, SW_SHOWNOACTIVATE);
 				ShowOwnedPopups(info.wnd, true);

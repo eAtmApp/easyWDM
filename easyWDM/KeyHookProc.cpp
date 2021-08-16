@@ -1,5 +1,5 @@
+#include "pch.h"
 #include "easyWDM.h"
-#include "helper.hpp"
 
 inline bool is_DownKey(UINT key)
 {
@@ -68,7 +68,7 @@ bool easyWDM::KeyMessage(UINT uType, KBDLLHOOKSTRUCT* pHook)
 
 		if (uType == WM_KEYDOWN && !is_handler && _is_filter_win && uKey != VK_LWIN)
 		{
-			console.debug("还原WIN");
+			//console.debug("还原WIN");
 			_is_filter_win = false;
 			keybd_event(VK_LWIN, 0, KEYEVENTF_EXTENDEDKEY | 0, 0x3412259);
 			//keybd_event(VK_LWIN, 0, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0);
@@ -81,13 +81,13 @@ bool easyWDM::KeyMessage(UINT uType, KBDLLHOOKSTRUCT* pHook)
 			{
 				_is_filter_win = true;
 				is_handler = true;
-				console.log("过滤WIN");
+				//console.log("过滤WIN");
 			}
 
 			//弹起重置标志
 			if (uType == WM_KEYUP && _is_filter_win)
 			{
-				console.log("重置WIN");
+				//console.log("重置WIN");
 				_is_filter_win = false;
 				is_handler = true;
 			}

@@ -2,6 +2,9 @@
 #include <windows.h>
 #include "tray_icon.h"
 #include <easy/easy.h>
+
+#include "helper.hpp"
+
 using namespace easy;
 
 typedef std::function<bool()> hotkey_handler;
@@ -22,6 +25,8 @@ public:
 	bool	initConfig();
 
 	bool	SetHotkey(std::string hotkey, hotkey_handler&& handler);
+
+	bool	init_hid();
 
 	void	initRawInput();
 private:

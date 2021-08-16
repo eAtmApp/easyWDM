@@ -16,9 +16,6 @@
     <Filter Include="tray_icon">
       <UniqueIdentifier>{4f9c9681-e03a-4df0-918c-7c283ad52d39}</UniqueIdentifier>
     </Filter>
-    <Filter Include="DualMonitor">
-      <UniqueIdentifier>{f9c7d7db-1122-49e9-a34c-df387637ff22}</UniqueIdentifier>
-    </Filter>
     <Filter Include="easyWDM">
       <UniqueIdentifier>{fb602f6f-ee91-4908-bf56-54e8dc1edd2d}</UniqueIdentifier>
     </Filter>
@@ -36,9 +33,6 @@
     <ClInclude Include="tray_icon.h">
       <Filter>tray_icon</Filter>
     </ClInclude>
-    <ClInclude Include="dmfun.h">
-      <Filter>DualMonitor</Filter>
-    </ClInclude>
     <ClInclude Include="easyDualMonitor.h">
       <Filter>源文件</Filter>
     </ClInclude>
@@ -48,6 +42,9 @@
     <ClInclude Include="helper.hpp">
       <Filter>easyWDM</Filter>
     </ClInclude>
+    <ClInclude Include="pch.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="easyDualMonitor.cpp">
@@ -55,9 +52,6 @@
     </ClCompile>
     <ClCompile Include="tray_icon.cpp">
       <Filter>tray_icon</Filter>
-    </ClCompile>
-    <ClCompile Include="dmfun.cpp">
-      <Filter>DualMonitor</Filter>
     </ClCompile>
     <ClCompile Include="easyWDM.cpp">
       <Filter>easyWDM</Filter>
@@ -71,12 +65,18 @@
     <ClCompile Include="MouseHookProc.cpp">
       <Filter>easyWDM</Filter>
     </ClCompile>
-    <ClCompile Include="rawInput.cpp">
+    <ClCompile Include="RawInput.cpp">
+      <Filter>easyWDM</Filter>
+    </ClCompile>
+    <ClCompile Include="pch.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="logi.cpp">
       <Filter>easyWDM</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="easyDualMonitor.rc">
+    <ResourceCompile Include="easyWDM.rc">
       <Filter>资源文件</Filter>
     </ResourceCompile>
   </ItemGroup>
@@ -84,10 +84,10 @@
     <Image Include="small.ico">
       <Filter>资源文件</Filter>
     </Image>
-    <Image Include="easyDualMonitor.ico">
+    <Image Include="easyDualMonitor_lock.ico">
       <Filter>资源文件</Filter>
     </Image>
-    <Image Include="easyDualMonitor_lock.ico">
+    <Image Include="easyWDM.ico">
       <Filter>资源文件</Filter>
     </Image>
   </ItemGroup>

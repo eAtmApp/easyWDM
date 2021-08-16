@@ -1,3 +1,4 @@
+#include "pch.h"
 #include "tray_icon.h"
 #include <stdexcept>
 #include <easy/easy.h>
@@ -276,7 +277,8 @@ LRESULT CALLBACK tray_icon::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPAR
 			if (it != _map_msg_handler.end())
 			{
 				it->second(wParam, lParam);
-				return true;
+				if (message != WM_INPUT) return true;
+				else return false;
 			}
 		}
 

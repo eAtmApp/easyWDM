@@ -1,11 +1,9 @@
 ﻿// trayicondemo.cpp : 定义应用程序的入口点。
-//
-
+#include "pch.h"
 #include "framework.h"
 #include "easyDualMonitor.h"
 
 #include "tray_icon.h"
-#include "dmfun.h"
 
 #include <easy/easy.h>
 using namespace easy;

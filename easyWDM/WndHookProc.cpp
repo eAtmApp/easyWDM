@@ -1,10 +1,10 @@
+#include "pch.h"
 #include "easyWDM.h"
-#include "helper.hpp"
 
 void easyWDM::WndHookProc(HWND hWnd, bool isCreate)
 {
 	if (!hWnd) return;
-
+	
 	//只转移创建后5秒内显示的窗口
 	constexpr auto MAX_WAIT_TIME = 5;
 

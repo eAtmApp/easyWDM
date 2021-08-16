@@ -1,6 +1,8 @@
+#include "pch.h"
 #include "easyWDM.h"
-#include "helper.hpp"
 #include "Resource.h"
+#include <hidsdi.h>
+#pragma comment(lib, "Dwmapi.lib")
 
 easyWDM::easyWDM(tray_icon& tray)
 	:_tray(tray)
@@ -36,11 +38,21 @@ void easyWDM::UninstallHook()
 
 bool easyWDM::initConfig()
 {
+	_config["raw_input"] = false;
 	_config["hook_key"] = true;
 	_config["hook_mouse"] = true;
 	_config["hook_windows"] = true;
 	_config["hotkey"] = {};
 	auto& win = _config["hotkey"];
+	win["win"] = {
+			{"type","start"},
+	};
+	win["win+d"] = {
+			{"type","desktop"},
+	};
+	win["win+r"] = {
+			{"type","run"},
+	};
 	win["win+c"] = {
 			{"type","open"},
 			{"path","cmd.exe"},
@@ -62,11 +74,6 @@ bool easyWDM::initConfig()
 		return false;
 	}
 
-	//内置功能
-	SetHotkey("win+d", helper::ShowDisktop);
-	SetHotkey("win+r", std::bind(helper::ShowRunDlg, false));
-	SetHotkey("win", helper::show_StartMenu);
-	
 	if (_config["hook_mouse"])
 	{
 		SetHotkey("ctrl", std::bind(&easyWDM::set_limit_mouse, this));
@@ -116,13 +123,14 @@ bool easyWDM::initConfig()
 					else if (optype == "null")	//啥也不作,只拦截此快捷键
 					{
 						return true;
-					}else if (optype.empty())
+					}
+					else if (optype.empty())
 					{
 						box.ShowError("此快捷键缺少操作类型,如不需要任何操作只作拦截用,请使用\"null\"");
 						return false;
 					}
 					else {
-						box.ShowError("未识别该操作:{}",optype);
+						box.ShowError("未识别该操作:{}", optype);
 						return false;
 					}
 				});
@@ -133,6 +141,11 @@ bool easyWDM::initConfig()
 			}
 		});
 
+	//内置功能
+	SetHotkey("win+d", helper::ShowDisktop);
+	SetHotkey("win+r", std::bind(helper::ShowRunDlg, false));
+	SetHotkey("win", helper::show_StartMenu);
+
 	return true;
 }
 
@@ -140,10 +153,17 @@ bool easyWDM::SetHotkey(std::string hotkey, hotkey_handler&& handler)
 {
 	DWORD dwFlags = _KEYS_STATUS::keyString_to_Flags(hotkey);
 	if (dwFlags == 0) return false;
-	if (_map_hotkey.find(dwFlags) != _map_hotkey.end()) return false;
-	_map_hotkey[dwFlags] = handler;
+	if (handler)
+	{
+		if (_map_hotkey.find(dwFlags) != _map_hotkey.end()) return false;
+		_map_hotkey[dwFlags] = handler;
+	}
+	else {
+		_map_hotkey.erase(dwFlags);
+	}
 	return true;
 }
+
 
 bool easyWDM::set_limit_mouse()
 {
@@ -155,7 +175,7 @@ bool easyWDM::set_limit_mouse()
 	}
 	else {
 		_tray.SetIcon(IDI_TRAYICONDEMO);
-		
+
 	}
 	return true;
 }
@@ -217,6 +237,74 @@ bool easyWDM::initWDM()
 			return false;
 		}
 	}
+
+	if (_config["raw_input"])
+	{
+		//0x06; //键盘   rid.usUsagePage = 0x01; rid.usUsage = 0x02; 为鼠标
+		RAWINPUTDEVICE rid[2] = { 0 };  //设备信息
+		rid[0].usUsagePage = 0xFF00;
+		rid[0].usUsage = 0;
+		rid[0].dwFlags = RIDEV_INPUTSINK| RIDEV_PAGEONLY;
+		rid[0].hwndTarget = _tray.GetWnd();
+		
+		if (!RegisterRawInputDevices(rid, 1, sizeof(RAWINPUTDEVICE)))
+		{
+			UninstallHook();
+			box.ApiError("RegisterRawInputDevices");
+			return false;
+		}
+
+		_tray.set_msg_handler(WM_INPUT, [&](WPARAM wParam, LPARAM lParam)
+			{
+				char szBuffer[1024] = { 0 };
+				do
+				{
+					UINT uSize = sizeof(szBuffer);
+					UINT uret = GetRawInputData((HRAWINPUT)lParam, RID_INPUT, szBuffer, &uSize, sizeof(RAWINPUTHEADER)); //先获取数据大小dwSize
+
+					//if (GetRawInputData((HRAWINPUT)lParam, RID_INPUT, lpb, &dwSize, sizeof(RAWINPUTHEADER)) != dwSize) //获取消息信息
+						//break;
+
+					RAWINPUT* raw = (RAWINPUT*)szBuffer;
+					//if (raw->header.dwType!= RIM_TYPEMOUSE) break;
+					//if (raw->header.dwType == RIM_TYPEMOUSE) break;
+
+					if (raw->header.dwType==RIM_TYPEHID)
+					{
+						char szName[2048] = { 0 };
+						if (HidD_GetProductString(raw->header.hDevice, szName, sizeof(szName)))
+						{
+							wchar_t* cao = (wchar_t*)szName;
+							auto astr = util::unicode_ansi(cao);
+							console.log("{}\n", astr);
+						}
+
+						char szDevName[1024] = { 0 };
+						UINT uSize = sizeof(szDevName);
+						auto resize=GetRawInputDeviceInfoA(raw->header.hDevice, RIDI_DEVICENAME, szDevName, &uSize);
+
+						auto hid = raw->data.hid;
+
+						console.log("设备类型:{}-{:08X} 数据:{}", raw->header.dwType, (uint32_t)(raw->header.hDevice), 
+							util::binary_to_hex({ (char*)raw+sizeof(RAWINPUTHEADER)+8,(uint32_t)(raw->header.dwSize- sizeof(RAWINPUTHEADER)-8) }));
+
+						int x = 0;
+						//console.log("读到数据:{}", );
+					}
+
+					auto& mouse = raw->data.mouse;
+					//mouse.usButtonData
+
+					INT64* pInt64 = (INT64*)&mouse;
+					//console.log("{:08X} {:08X} {:08X} {:08X} {:08X}", pInt64[0], pInt64[1], pInt64[2], pInt64[3], pInt64[4]);
+
+					break;
+
+				} while (false);
+			});
+	}
+
+	init_hid();
 
 	//std::thread rawinput(&easyWDM::initRawInput, this);
 	//rawinput.detach();
