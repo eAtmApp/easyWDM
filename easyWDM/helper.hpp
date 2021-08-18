@@ -2,27 +2,56 @@
 #include <easy/easy.h>
 #include <windows.h>
 #include <dwmapi.h>
+#include <combaseapi.h>
+#include <shldisp.h>
 
 class helper
 {
 public:
-	
+
+	inline static	HICON	m_runDlgIcon = nullptr;
+
 	static bool ShowRunDlg(bool is_thread = false)
 	{
-		//父窗口句柄,图标,一个未知路径,窗口标题,说明文字,未知(跟踪显示为0x14或0x4)
+		/*
+				//不在主线程显示对话框
+				if (!is_thread)
+				{
+					std::thread thread_(helper::ShowRunDlg, true);
+					thread_.detach();
+					return true;
+				}
+				HRESULT hr;
+				hr=::CoInitialize(nullptr);
+				{
+					IShellDispatch* pShellDisp = NULL;
+
+					hr = ::CoCreateInstance(CLSID_Shell, NULL, CLSCTX_SERVER,
+						IID_IShellDispatch, (LPVOID*)&pShellDisp);
+
+					if (hr == S_OK)
+					{
+						pShellDisp->FileRun();
+						pShellDisp->Release();
+						pShellDisp = NULL;
+					}
+				}
+				return (hr == S_OK);*/
+
+				//父窗口句柄,图标,工作路径,窗口标题,说明文字,未知(跟踪显示为0x14或0x4)
 		typedef DWORD(WINAPI* LPRUNDLG)(HWND, HICON, LPCWSTR, LPCWSTR, LPCWSTR, DWORD);
 		static LPRUNDLG s_RunDlg = nullptr;
-		if (s_RunDlg==nullptr)
+		if (s_RunDlg == nullptr)
 		{
 			HMODULE hMod = ::LoadLibrary("shell32.dll");
 			if (hMod)s_RunDlg = (LPRUNDLG)::GetProcAddress(hMod, MAKEINTRESOURCE(61));
 			if (!s_RunDlg) return false;
 		}
-		
+
 		//不在主线程显示对话框
 		if (!is_thread)
 		{
-			std::thread thread_(helper::ShowRunDlg,true);
+			std::thread thread_(helper::ShowRunDlg, true);
 			thread_.detach();
 			return true;
 		}
@@ -34,11 +63,15 @@ public:
 		hSBWnd = CreateWindowA("Static", nullptr, 0, rct.left, rct.bottom - 300, 300, 300, nullptr, nullptr, (HINSTANCE)::GetModuleHandleA(NULL), NULL);
 		if (hSBWnd)
 		{
+			wchar_t* homeProfile = L"USERPROFILE";
+			wchar_t homePath[1024] = { 0 };
+			GetEnvironmentVariableW(homeProfile, homePath, sizeof(homePath));
+
 			activeWnd(hSBWnd);
-			s_RunDlg(hSBWnd, nullptr, nullptr, nullptr, nullptr, 4);
+			s_RunDlg(hSBWnd, nullptr, homePath, nullptr, nullptr, 0x4 | 0x1);
 			::DestroyWindow(hSBWnd);
 		}
-		return hSBWnd!=nullptr;
+		return hSBWnd != nullptr;
 	}
 
 	static void activeWnd(HWND hWnd)
@@ -82,15 +115,45 @@ public:
 		return CloakedVal ? true : false;
 	}
 
+	//判断窗口是否显示在任务栏
+	static bool IsToolbarWnd(HWND hWnd)
+	{
+		DWORD dwExstyle = ::GetWindowLongA(hWnd, GWL_EXSTYLE);
+		return dwExstyle & WS_EX_APPWINDOW;
+	}
+
+	struct _WND_RC
+	{
+		HWND wnd = nullptr;
+		std::string title;
+		std::string cls;
+		HWND hOwerWnd = nullptr;
+	};
+
+	inline static std::map<HMONITOR, std::vector<_WND_RC>> _map_OwerWnd;
+
+	inline static std::map<HMONITOR, std::vector<_WND_RC>> _map_TopWnd;
+	
+	//显示当前窗口或当前显示器的弹出窗口
+	static bool showOwerWnd(HMONITOR hMonitor,bool is_active)
+	{
+		auto& vecOwer = _map_OwerWnd[hMonitor];
+		HWND hLastWnd = nullptr;
+		for (auto& rc : vecOwer)
+		{
+			if (!::IsWindow(rc.wnd) || IsWindowVisible(rc.wnd)) continue;
+			ShowOwnedPopups(rc.hOwerWnd, true);
+			hLastWnd = rc.wnd;
+		}
+		vecOwer.clear();
+
+		if (hLastWnd && is_active) activeWnd(hLastWnd);
+
+		return hLastWnd!=nullptr;
+	}
+	
 	static bool ShowDisktop()
 	{
-		struct _WND_RC
-		{
-			HWND wnd;
-			bool isMax;
-		};
-		static std::map<HMONITOR, std::vector<_WND_RC>> s_map_rc;
-
 		HWND hDesktop = GetDesktopWnd();
 
 		HMONITOR hMonitor = getCurrentMonitor();
@@ -99,7 +162,7 @@ public:
 
 		auto EnumMonitorWnd = [&](HWND hDesktop, HMONITOR hMonitor)
 		{
-			std::vector<HWND> vec;
+			std::vector<_WND_RC> vec;
 
 			HWND hWndCCC = hDesktop;
 
@@ -124,51 +187,53 @@ public:
 
 				//调试时不隐藏
 			#ifdef _DEBUG
+				if (titleName.find("Microsoft Visual Studio(管理员)") != std::string::npos
+					&& titleName.find("(正在") != std::string::npos)
+				{
+					continue;
+				}
 				//if (className == "HwndWrapper[DefaultDomain;;4da6d4be-d0ca-41a1-b9a9-bf651e51960c]") continue;
 			#endif // _DEBUG
 
 				//最后判断这个窗口是否在这个显示器中
 				RECT rct = { 0 };
-				if (::GetWindowRect(hWndCCC, &rct)
-					&& MonitorFromRect(&rct, MONITOR_DEFAULTTONEAREST) != hMonitor)
-				{
-					continue;
-				}
+				if (!::GetWindowRect(hWndCCC, &rct)) continue;
 
-				vec.push_back(hWndCCC);
+				//全是0的窗口不显示
+				if (rct.bottom - rct.top <= 1 || rct.right - rct.left <= 1) continue;
+
+				if (MonitorFromRect(&rct, MONITOR_DEFAULTTONEAREST) != hMonitor) continue;
+
+				vec.push_back({ hWndCCC,titleName,className,::GetWindow(hWndCCC, GW_OWNER) });
 			}
 			return vec;
 		};
 
 		auto vecCur = EnumMonitorWnd(hDesktop, hMonitor);
-
-		std::vector<_WND_RC>* pVec = nullptr;
-		auto itor = s_map_rc.find(hMonitor);
-		if (itor == s_map_rc.end())
-		{
-			std::vector<_WND_RC> rc;
-			s_map_rc[hMonitor] = rc;
-
-			itor = s_map_rc.find(hMonitor);
-		}
-		pVec = &itor->second;
-		auto& vecOld = *pVec;
+		
+		auto& vecTopWnd = _map_TopWnd[hMonitor];
+		auto& vecOWerWnd = _map_OwerWnd[hMonitor];
 
 		//如果有窗口在显示
 		if (!vecCur.empty())
 		{
-			vecOld.clear();
+			vecTopWnd.clear();
 
-			ShowOwnedPopups(nullptr, false);
-			for (auto& wnd : vecCur)
+			for (auto& rc : vecCur)
 			{
-				vecOld.push_back({ wnd,(bool)::IsZoomed(wnd) });
+				if (!IsWindowVisible(rc.wnd) || IsIconic(rc.wnd)) continue;
 
-				if (!IsWindowVisible(wnd)) continue;
+				if (rc.hOwerWnd)
+				{
+					ShowOwnedPopups(rc.hOwerWnd, false);
 
-				if (IsIconic(wnd)) continue;
-				ShowOwnedPopups(wnd, false);
-				::ShowWindow(wnd, SW_MINIMIZE);		//最小化窗口
+					vecOWerWnd.emplace_back(std::move(rc));
+				}
+				else {
+					::ShowWindow(rc.wnd, SW_MINIMIZE);		//最小化窗口
+
+					vecTopWnd.emplace_back(std::move(rc));
+				}
 			}
 
 			//将桌面置前台取得焦点
@@ -177,25 +242,20 @@ public:
 		else {
 			HWND hLastWnd = nullptr;
 
-			ShowOwnedPopups(nullptr, true);
-
 			//还原窗口
-			for (auto& info : vecOld)
+			for (auto& rc : vecTopWnd)
 			{
-				if (!::IsWindow(info.wnd)) continue;
-
-				//if (!IsIconic(info.wnd) && IsWindowVisible(info.wnd)) continue;
-				//if (!IsIconic(info.wnd)) continue;
-
-				::ShowWindow(info.wnd, SW_SHOWNOACTIVATE);
-				ShowOwnedPopups(info.wnd, true);
-
-				hLastWnd = info.wnd;
+				if (!::IsWindow(rc.wnd)) continue;
+				::ShowWindow(rc.wnd, SW_SHOWNOACTIVATE);
+				hLastWnd = rc.wnd;
 			}
-			vecOld.clear();
+			
+			vecTopWnd.clear();
 
-			//将最后还原的窗口置前台激活
-			activeWnd(hLastWnd);
+			if (!showOwerWnd(hMonitor,true))
+			{
+				activeWnd(hLastWnd);
+			}
 		}
 
 		return true;

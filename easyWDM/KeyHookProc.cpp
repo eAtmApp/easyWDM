@@ -148,7 +148,7 @@ LRESULT CALLBACK easyWDM::KeyHookProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
 	if (nCode < 0) return CallNextHookEx(_hookMouse, nCode, wParam, lParam);
 
-	if (nCode == HC_ACTION && m_pThis->KeyMessage(wParam, (KBDLLHOOKSTRUCT*)lParam))
+	if (nCode == HC_ACTION && m_pThis->KeyMessage((UINT)wParam, (KBDLLHOOKSTRUCT*)lParam))
 	{
 		return true;
 	}

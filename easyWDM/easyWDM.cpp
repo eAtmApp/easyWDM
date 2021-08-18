@@ -9,7 +9,7 @@ easyWDM::easyWDM(tray_icon& tray)
 {
 	m_pThis = this;
 }
-
+ 
 easyWDM::~easyWDM()
 {
 	UninstallHook();
@@ -93,14 +93,14 @@ bool easyWDM::initConfig()
 						etd::string_view param = item["param"];
 						etd::string_view dir = item["dir"];
 
-						auto result = (UINT)ShellExecuteA(nullptr,
+						auto result = ShellExecuteA(nullptr,
 							optype.empty() ? nullptr : optype.data(),
 							path.empty() ? nullptr : path.data(),
 							param.empty() ? nullptr : param.data(),
 							dir.empty() ? nullptr : dir.data(),
 							SW_SHOWNORMAL);
 
-						return result > 32;
+						return result > (HINSTANCE)32;
 					}
 					else if (optype == "desktop")	//显示桌面
 					{
@@ -164,7 +164,6 @@ bool easyWDM::SetHotkey(std::string hotkey, hotkey_handler&& handler)
 	return true;
 }
 
-
 bool easyWDM::set_limit_mouse()
 {
 	m_bIs_limit_mouse = !m_bIs_limit_mouse;
@@ -182,10 +181,45 @@ bool easyWDM::set_limit_mouse()
 
 bool easyWDM::initWDM()
 {
+	std::map<int, std::string> tesmap;
+	
+	tesmap[3] = "abcdefg";
+
+	auto& str = tesmap[3];
+
+	auto& str2 = tesmap[4];
+	str2 = "abcdefg";
+
+	//helper::ShowDisktop();
+
 	if (!initConfig()) return false;
+	
+	//键盘钩子
+	if (_config["hook_key"])
+	{
+		_hookKey = SetWindowsHookExA(WH_KEYBOARD_LL, KeyHookProc, ::GetModuleHandleA(nullptr), NULL);
+		if (!_hookKey)
+		{
+			UninstallHook();
+			box.ApiError("SetWindowsHookExA", "WH_KEYBOARD_LL");
+			return false;
+		}
+	}
+
+	//鼠标钩子
+	if (_config["hook_mouse"])
+	{
+		_hookMouse = SetWindowsHookExA(WH_MOUSE_LL, MouseHookProc, ::GetModuleHandleA(nullptr), NULL);
+		if (!_hookMouse)
+		{
+			UninstallHook();
+			box.ApiError("SetWindowsHookExA", "WH_MOUSE_LL");
+			return false;
+		}
+	}
 
 	//窗口勾子
-	if (_config["hook_windows"])
+	if (_config["hook_windows"] || _config["hook_key"])
 	{
 		g_Shell_Wnd_Msg_ID = RegisterWindowMessageA("SHELLHOOK");
 		if (g_Shell_Wnd_Msg_ID == 0)
@@ -212,30 +246,6 @@ bool easyWDM::initWDM()
 					WndHookProc((HWND)lParam, false);
 				}
 			});
-	}
-
-	//键盘钩子
-	if (_config["hook_key"])
-	{
-		_hookKey = SetWindowsHookExA(WH_KEYBOARD_LL, KeyHookProc, ::GetModuleHandleA(nullptr), NULL);
-		if (!_hookKey)
-		{
-			UninstallHook();
-			box.ApiError("SetWindowsHookExA", "WH_KEYBOARD_LL");
-			return false;
-		}
-	}
-
-	//鼠标钩子
-	if (_config["hook_mouse"])
-	{
-		_hookMouse = SetWindowsHookExA(WH_MOUSE_LL, MouseHookProc, ::GetModuleHandleA(nullptr), NULL);
-		if (!_hookMouse)
-		{
-			UninstallHook();
-			box.ApiError("SetWindowsHookExA", "WH_MOUSE_LL");
-			return false;
-		}
 	}
 
 	if (_config["raw_input"])
@@ -282,11 +292,11 @@ bool easyWDM::initWDM()
 						char szDevName[1024] = { 0 };
 						UINT uSize = sizeof(szDevName);
 						auto resize=GetRawInputDeviceInfoA(raw->header.hDevice, RIDI_DEVICENAME, szDevName, &uSize);
-
+						 
 						auto hid = raw->data.hid;
 
-						console.log("设备类型:{}-{:08X} 数据:{}", raw->header.dwType, (uint32_t)(raw->header.hDevice), 
-							util::binary_to_hex({ (char*)raw+sizeof(RAWINPUTHEADER)+8,(uint32_t)(raw->header.dwSize- sizeof(RAWINPUTHEADER)-8) }));
+						console.log("设备类型:{}-{:08X} 数据:{}", raw->header.dwType, (uint64_t)(raw->header.hDevice), 
+							util::binary_to_hex({ (char*)raw+sizeof(RAWINPUTHEADER)+8,(uint64_t)(raw->header.dwSize- sizeof(RAWINPUTHEADER)-8) }));
 
 						int x = 0;
 						//console.log("读到数据:{}", );
@@ -304,7 +314,7 @@ bool easyWDM::initWDM()
 			});
 	}
 
-	init_hid();
+	//init_hid();
 
 	//std::thread rawinput(&easyWDM::initRawInput, this);
 	//rawinput.detach();

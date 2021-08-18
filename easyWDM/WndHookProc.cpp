@@ -4,6 +4,17 @@
 void easyWDM::WndHookProc(HWND hWnd, bool isCreate)
 {
 	if (!hWnd) return;
+
+	auto hMonitor = helper::getCurrentMonitor();
+
+	helper::showOwerWnd(hMonitor,false);
+
+	//调试
+	{
+		auto txtName = helper::getWndTitle(hWnd);
+		auto className = helper::getWndClass(hWnd);
+		console.log("激活窗口:{} - {}", className, txtName);
+	}
 	
 	//只转移创建后5秒内显示的窗口
 	constexpr auto MAX_WAIT_TIME = 5;
@@ -43,13 +54,11 @@ void easyWDM::WndHookProc(HWND hWnd, bool isCreate)
 		}
 	}
 
-	auto hMonitor = helper::getCurrentMonitor();
-
 	RECT rct = { 0 };
 	if (!::GetWindowRect(hWnd, &rct)) return;
 
 	auto wndMonitor = MonitorFromRect(&rct, MONITOR_DEFAULTTONEAREST);
-	if (wndMonitor == hMonitor || wndMonitor==nullptr) return;
+	if (wndMonitor == hMonitor || wndMonitor == nullptr) return;
 
 	RECT monRct = { 0 };
 	if (!helper::getCurrentMonitorRecv(&monRct)) return;

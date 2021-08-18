@@ -102,7 +102,7 @@ LRESULT CALLBACK easyWDM::MouseHookProc(int nCode, WPARAM wParam, LPARAM lParam)
 	if (nCode < 0)
 	{
 		lresult= CallNextHookEx(_hookMouse, nCode, wParam, lParam);
-	} else if (nCode == HC_ACTION && m_pThis->MouseMessage(wParam, ((MOUSEHOOKSTRUCT*)lParam)->pt))
+	} else if (nCode == HC_ACTION && m_pThis->MouseMessage((UINT)wParam, ((MOUSEHOOKSTRUCT*)lParam)->pt))
 	{
 		lresult= true;
 	}

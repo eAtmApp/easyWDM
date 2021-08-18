@@ -38,7 +38,7 @@ bool easyWDM::init_hid()
 		{
 			auto bin = util::hex_to_binary(hex);
 			DWORD dwSize = 0;
-			if (!::WriteFile(hFile, bin.data(), bin.size(), &dwSize, nullptr))
+			if (!::WriteFile(hFile, bin.data(), (DWORD)bin.size(), &dwSize, nullptr))
 			{
 				console.log("–¥»Î ß∞‹:{}", hex);
 			}
@@ -49,7 +49,7 @@ bool easyWDM::init_hid()
 
 		auto bin = util::hex_to_binary("11010D3A00520300520000000000000000000000");
 		DWORD dwSize = 0;
-		auto rrr = ::WriteFile(hFile, bin.data(), bin.size(), &dwSize, nullptr);
+		auto rrr = ::WriteFile(hFile, bin.data(), (DWORD)bin.size(), &dwSize, nullptr);
 		rrr = rrr;
 
 		/*
