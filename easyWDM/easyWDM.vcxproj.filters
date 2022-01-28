@@ -92,6 +92,6 @@
     </Image>
   </ItemGroup>
   <ItemGroup>
-    <Natvis Include="..\..\..\easy_cpp\easylib\easylib\jsoncpp.natvis" />
+    <Natvis Include="..\..\..\easy_cpp\easylib\easylib\natvis\jsoncpp.natvis" />
   </ItemGroup>
 </Project>

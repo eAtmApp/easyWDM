@@ -13,7 +13,7 @@ void easyWDM::WndHookProc(HWND hWnd, bool isCreate)
 	{
 		auto txtName = helper::getWndTitle(hWnd);
 		auto className = helper::getWndClass(hWnd);
-		console.log("激活窗口:{} - {}", className, txtName);
+		//console.log("激活窗口:{} - {}", className, txtName);
 	}
 	
 	//只转移创建后5秒内显示的窗口

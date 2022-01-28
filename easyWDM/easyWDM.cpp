@@ -174,8 +174,11 @@ bool easyWDM::set_limit_mouse()
 	}
 	else {
 		_tray.SetIcon(IDI_TRAYICONDEMO);
-
 	}
+
+	 _config["m_bIs_limit_mouse"]= m_bIs_limit_mouse;
+	_config.writeConfig();
+
 	return true;
 }
 
@@ -206,6 +209,15 @@ bool easyWDM::initWDM()
 		}
 	}
 
+	m_bIs_limit_mouse = _config["m_bIs_limit_mouse"];
+	if (m_bIs_limit_mouse)
+	{
+		_tray.SetIcon(IDI_LOCK);
+	}
+	else {
+		_tray.SetIcon(IDI_TRAYICONDEMO);
+	}
+
 	//鼠标钩子
 	if (_config["hook_mouse"])
 	{
@@ -217,7 +229,7 @@ bool easyWDM::initWDM()
 			return false;
 		}
 	}
-
+	
 	//窗口勾子
 	if (_config["hook_windows"] || _config["hook_key"])
 	{

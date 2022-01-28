@@ -13,6 +13,10 @@ bool easyWDM::MouseMessage(UINT button, POINT pt)
 
 	static HWND s_wnd_lock = nullptr;
 
+	static RECT s_cur_rect = { 0 };
+	static POINT	s_old_pt = { 0 };
+	static HMONITOR s_old_hMonitor = nullptr;
+
 	//处理鼠标中键-Alt+中键 记住窗口,Ctrl+中键 恢复记住窗口
 /*
 	if (button == EWM_MBUTTONDOWN)
@@ -54,6 +58,61 @@ bool easyWDM::MouseMessage(UINT button, POINT pt)
 		return true;
 	}*/
 
+	//处理鼠标穿越.
+	/*{
+		GetCursorPos(&pt);
+		if (s_cur_rect.left == 0 && s_cur_rect.top == 0 && s_cur_rect.bottom == 0 && s_cur_rect.right == 0)
+		{
+			//保存最后一个显示器的矩阵
+		}
+
+		auto curMonitor = MonitorFromPoint(pt, MONITOR_DEFAULTTONULL);
+		if (s_old_hMonitor == nullptr)
+		{
+			s_old_hMonitor = curMonitor;
+			s_old_pt = pt;
+		}
+
+		if (curMonitor)
+		{
+
+			bool is_set_pt = false;
+
+			if (curMonitor != s_old_hMonitor)
+			{
+				//得到原显示器中的Y轴比率
+				double yBiLv = 0;
+				{
+					auto oldRect = helper::getMonitorRecv(s_old_hMonitor);
+					auto oldHeight = oldRect.bottom - oldRect.top;
+					yBiLv = 1 - ((double)(s_old_pt.y - oldRect.top) / (double)oldHeight);
+				}
+				console.log("比例:{}", yBiLv);
+
+				
+				auto curRect = helper::getMonitorRecv(curMonitor);
+				auto curHeight = curRect.bottom - curRect.top;
+				auto curVal = curHeight * yBiLv;
+				curVal = curRect.bottom - curVal;
+
+				console.log("原:{},新:{}", pt.y, curVal);
+				pt.y = (LONG)curVal;
+
+				//pt_new = pt;
+				//pt_new.y = (LONG)curVal;
+				//is_set_pt = true;
+			}
+			s_old_hMonitor = curMonitor;
+			s_old_pt = pt;
+			
+			if (is_set_pt)
+			{
+				::SetCaretPos(pt.x, pt.y);
+				return true;
+			}
+		}
+	}*/
+	
 	if (!m_bIs_limit_mouse)
 	{
 		if (s_is_set_limit_rect)
@@ -62,6 +121,7 @@ bool easyWDM::MouseMessage(UINT button, POINT pt)
 			::ClipCursor(nullptr);
 			s_is_set_limit_rect = false;
 		}
+
 	}
 	else {
 		if (!s_is_set_limit_rect)

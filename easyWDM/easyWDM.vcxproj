@@ -199,7 +199,7 @@
     <Image Include="easyWDM.ico" />
   </ItemGroup>
   <ItemGroup>
-    <Natvis Include="..\..\..\easy_cpp\easylib\easylib\jsoncpp.natvis" />
+    <Natvis Include="..\..\..\easy_cpp\easylib\easylib\natvis\jsoncpp.natvis" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

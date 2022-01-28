@@ -5,6 +5,8 @@
 #include <combaseapi.h>
 #include <shldisp.h>
 
+using namespace easy;
+
 class helper
 {
 public:
@@ -99,7 +101,7 @@ public:
 		hWnd = nullptr;
 		do
 		{
-			hWnd = ::FindWindowEx(nullptr, hWnd, "WorkerW", nullptr);
+			hWnd = ::FindWindowExA(nullptr, hWnd, "WorkerW", nullptr);
 			if (hWnd == nullptr) break;
 
 			if (::FindWindowExA(hWnd, nullptr, "SHELLDLL_DefView", nullptr) != nullptr) return hWnd;
@@ -115,13 +117,6 @@ public:
 		return CloakedVal ? true : false;
 	}
 
-	//判断窗口是否显示在任务栏
-	static bool IsToolbarWnd(HWND hWnd)
-	{
-		DWORD dwExstyle = ::GetWindowLongA(hWnd, GWL_EXSTYLE);
-		return dwExstyle & WS_EX_APPWINDOW;
-	}
-
 	struct _WND_RC
 	{
 		HWND wnd = nullptr;
@@ -130,28 +125,27 @@ public:
 		HWND hOwerWnd = nullptr;
 	};
 
-	inline static std::map<HMONITOR, std::vector<_WND_RC>> _map_OwerWnd;
+	inline static std::map<HMONITOR, std::list<_WND_RC>> _map_Wnd;
 
-	inline static std::map<HMONITOR, std::vector<_WND_RC>> _map_TopWnd;
-	
 	//显示当前窗口或当前显示器的弹出窗口
-	static bool showOwerWnd(HMONITOR hMonitor,bool is_active)
+	static bool showOwerWnd(HMONITOR hMonitor, bool is_active)
 	{
-		auto& vecOwer = _map_OwerWnd[hMonitor];
+		auto& listWnd = _map_Wnd[hMonitor];
 		HWND hLastWnd = nullptr;
-		for (auto& rc : vecOwer)
+		for (auto it = listWnd.begin(); it != listWnd.end();)
 		{
-			if (!::IsWindow(rc.wnd) || IsWindowVisible(rc.wnd)) continue;
-			ShowOwnedPopups(rc.hOwerWnd, true);
-			hLastWnd = rc.wnd;
+			auto cur_it = it++;
+			if (cur_it->hOwerWnd)
+			{
+				ShowOwnedPopups(cur_it->hOwerWnd, true);
+				hLastWnd = cur_it->wnd;
+				listWnd.erase(cur_it);
+			}
 		}
-		vecOwer.clear();
-
 		if (hLastWnd && is_active) activeWnd(hLastWnd);
-
-		return hLastWnd!=nullptr;
+		return hLastWnd != nullptr;
 	}
-	
+
 	static bool ShowDisktop()
 	{
 		HWND hDesktop = GetDesktopWnd();
@@ -180,7 +174,9 @@ public:
 
 				if (className == "Shell_SecondaryTrayWnd"
 					|| className == "Shell_TrayWnd"
-					|| className == "WorkerW")
+					|| className == "WorkerW"
+					|| className=="SysShadow"
+					|| className=="TaskListThumbnailWnd")
 				{
 					continue;
 				}
@@ -190,7 +186,7 @@ public:
 				if (titleName.find("Microsoft Visual Studio(管理员)") != std::string::npos
 					&& titleName.find("(正在") != std::string::npos)
 				{
-					continue;
+					//continue;
 				}
 				//if (className == "HwndWrapper[DefaultDomain;;4da6d4be-d0ca-41a1-b9a9-bf651e51960c]") continue;
 			#endif // _DEBUG
@@ -210,30 +206,29 @@ public:
 		};
 
 		auto vecCur = EnumMonitorWnd(hDesktop, hMonitor);
-		
-		auto& vecTopWnd = _map_TopWnd[hMonitor];
-		auto& vecOWerWnd = _map_OwerWnd[hMonitor];
+
+		auto& listWnd = _map_Wnd[hMonitor];
 
 		//如果有窗口在显示
 		if (!vecCur.empty())
 		{
-			vecTopWnd.clear();
+			//删除list中所有的顶级窗口(非弹出)
+			for (auto it = listWnd.begin(); it != listWnd.end();)
+			{
+				auto cur_it = it++;
+				if (!cur_it->hOwerWnd) listWnd.erase(cur_it);
+			}
 
+			//最小化所有
 			for (auto& rc : vecCur)
 			{
 				if (!IsWindowVisible(rc.wnd) || IsIconic(rc.wnd)) continue;
 
-				if (rc.hOwerWnd)
-				{
-					ShowOwnedPopups(rc.hOwerWnd, false);
+				if (rc.hOwerWnd) ShowOwnedPopups(rc.hOwerWnd, false);
+				else			 ::ShowWindow(rc.wnd, SW_MINIMIZE);
 
-					vecOWerWnd.emplace_back(std::move(rc));
-				}
-				else {
-					::ShowWindow(rc.wnd, SW_MINIMIZE);		//最小化窗口
-
-					vecTopWnd.emplace_back(std::move(rc));
-				}
+				console.log("隐藏:{:08X}-{}-{}", (DWORD)rc.wnd, rc.title, rc.cls);
+				listWnd.emplace_back(std::move(rc));
 			}
 
 			//将桌面置前台取得焦点
@@ -242,20 +237,32 @@ public:
 		else {
 			HWND hLastWnd = nullptr;
 
-			//还原窗口
-			for (auto& rc : vecTopWnd)
+			for (auto it = listWnd.begin(); it != listWnd.end(); it++)
 			{
+				auto& rc = *it;
 				if (!::IsWindow(rc.wnd)) continue;
-				::ShowWindow(rc.wnd, SW_SHOWNOACTIVATE);
-				hLastWnd = rc.wnd;
-			}
-			
-			vecTopWnd.clear();
 
-			if (!showOwerWnd(hMonitor,true))
-			{
-				activeWnd(hLastWnd);
+				if (rc.hOwerWnd)
+				{
+ 					ShowOwnedPopups(rc.hOwerWnd, true);
+				}
+				else
+				{
+					::ShowWindow(rc.wnd, SW_SHOWNOACTIVATE);
+
+					//::SetWindowPos(rc.wnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+					hLastWnd = rc.wnd;
+				}
+
+									SetWindowPos(rc.wnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
+					SetWindowPos(rc.wnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE); 
+
+				console.log("显示:{:08X}-{}-{}", (DWORD)rc.wnd, rc.title,rc.cls);
 			}
+
+			listWnd.clear();
+
+			activeWnd(hLastWnd);
 		}
 
 		return true;
@@ -283,27 +290,37 @@ public:
 	static bool getCurrentMonitorRecv(RECT* lpRect)
 	{
 		auto hMon = getCurrentMonitor();
+		auto rct = getMonitorRecv(hMon);
+		memcpy(lpRect, &rct, sizeof(RECT));
+		return true;
+	}
 
+	static RECT getMonitorRecv(HMONITOR hMon)
+	{
+		RECT rct = { 0 };
 		MONITORINFOEX moninfo = { 0 };
 		moninfo.cbSize = sizeof(moninfo);
 
 		if (!GetMonitorInfoA(hMon, &moninfo))
 		{
-			return false;
+			ASSERT(0);
 		}
-		memcpy(lpRect, &moninfo.rcMonitor, sizeof(RECT));
-		return true;
+		memcpy(&rct, &moninfo.rcMonitor, sizeof(RECT));
+		return rct;
 	}
 
 	//当前监视器句柄
-	static HMONITOR getCurrentMonitor()
+	static HMONITOR getCurrentMonitor(POINT *lppos=nullptr)
 	{
-		POINT pos = { 0 };
-		if (!GetCursorPos(&pos))
+		if (!lppos)
 		{
-			return nullptr;
+			POINT pos = { 0 };
+			if (!GetCursorPos(&pos)) return nullptr;
+			return MonitorFromPoint(pos, MONITOR_DEFAULTTONEAREST);
 		}
-		return MonitorFromPoint(pos, MONITOR_DEFAULTTONEAREST);
+		else {
+			return MonitorFromPoint(*lppos, MONITOR_DEFAULTTONEAREST);
+		}
 	}
 
 	//当前监视器开始菜单按钮句柄
