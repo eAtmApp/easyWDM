@@ -47,6 +47,8 @@ private:
 
 	bool	MouseMessage(UINT button, POINT pt);
 
+	bool	m_filter_win_status = false;
+
 #define VK_WIN 0xFF
 
 	enum key_flags
@@ -65,7 +67,7 @@ private:
 		UCHAR inline set_status(UINT uType, UCHAR cKey)
 		{
 			UCHAR uDownCount = 0;
-			ASSERT(cKey < 0xFF);
+			ASSERT(cKey <= 0xFF);
 			if (cKey >= 0xFF) return 0;
 			if (uType == WM_KEYDOWN)
 			{
@@ -178,6 +180,12 @@ private:
 			hotkeyFlags = hotkeyFlags << 16;
 			hotkeyFlags |= cKey;
 			return hotkeyFlags;
+		}
+
+		void	reset()
+		{
+			_last_down_tick = 0;
+			RtlZeroMemory(keys, sizeof(keys));
 		}
 
 		//记录最后一次按下按键时间

@@ -15,32 +15,7 @@ public:
 
 	static bool ShowRunDlg(bool is_thread = false)
 	{
-		/*
-				//不在主线程显示对话框
-				if (!is_thread)
-				{
-					std::thread thread_(helper::ShowRunDlg, true);
-					thread_.detach();
-					return true;
-				}
-				HRESULT hr;
-				hr=::CoInitialize(nullptr);
-				{
-					IShellDispatch* pShellDisp = NULL;
-
-					hr = ::CoCreateInstance(CLSID_Shell, NULL, CLSCTX_SERVER,
-						IID_IShellDispatch, (LPVOID*)&pShellDisp);
-
-					if (hr == S_OK)
-					{
-						pShellDisp->FileRun();
-						pShellDisp->Release();
-						pShellDisp = NULL;
-					}
-				}
-				return (hr == S_OK);*/
-
-				//父窗口句柄,图标,工作路径,窗口标题,说明文字,未知(跟踪显示为0x14或0x4)
+		//父窗口句柄,图标,工作路径,窗口标题,说明文字,未知(跟踪显示为0x14或0x4)
 		typedef DWORD(WINAPI* LPRUNDLG)(HWND, HICON, LPCWSTR, LPCWSTR, LPCWSTR, DWORD);
 		static LPRUNDLG s_RunDlg = nullptr;
 		if (s_RunDlg == nullptr)
@@ -65,12 +40,87 @@ public:
 		hSBWnd = CreateWindowA("Static", nullptr, 0, rct.left, rct.bottom - 300, 300, 300, nullptr, nullptr, (HINSTANCE)::GetModuleHandleA(NULL), NULL);
 		if (hSBWnd)
 		{
-			wchar_t* homeProfile = L"USERPROFILE";
-			wchar_t homePath[1024] = { 0 };
-			GetEnvironmentVariableW(homeProfile, homePath, sizeof(homePath));
+			static WNDPROC prevWndProc;
+			
+			struct _tagTemp {
+				static LRESULT CALLBACK WndProcedure(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+					switch (uMsg) {
+					case WM_NOTIFY:
+					{
+						if (wParam == 0)
+						{
+							struct tagNMRUNFILEDLGW {
+								NMHDR		hdr;
+								LPCWSTR		lpszFile;
+								LPCWSTR		lpszDirectory;
+								int			nShow;
+							};
+							auto param = (tagNMRUNFILEDLGW*)lParam;
+							eString path = util::unicode_ansi(param->lpszFile);
+							
+							int error_code = 0;
+							if (!runApp("open", path, "", "",&error_code))
+							{
+								eString err_type;
+								switch (error_code)
+								{
+								case SE_ERR_FNF:
+									err_type = "文件未找到";
+									break;
+								case SE_ERR_PNF:
+									err_type = "找不到路径";
+									break;
+								case SE_ERR_ACCESSDENIED:
+									err_type = "拒绝访问";
+									break;
+								case SE_ERR_OOM:
+									err_type = "内存溢出";
+									break;
+								case SE_ERR_DLLNOTFOUND:
+									err_type = "动态链接库未找到";
+									break;
+								case SE_ERR_SHARE:
+									err_type = "共享文件未找到";
+									break;
+								case SE_ERR_ASSOCINCOMPLETE:
+									err_type = "文件关联信息不完整";
+									break;
+								case SE_ERR_DDETIMEOUT:
+									err_type = "DDE操作超时";
+									break;
+								case SE_ERR_DDEFAIL:
+									err_type = "DDE操作失败";
+									break;
+								case SE_ERR_DDEBUSY:
+									err_type = "DDE正忙";
+									break;
+								case SE_ERR_NOASSOC:
+									err_type = "没有找到关联的应用程序";
+									break;
+								default:
+									err_type.Format("操作失败({})", error_code);
+								}
 
+								eString err_msg;
+								err_msg.Format("找不开文件 '{}' {}", path.c_str(), err_type.c_str());
+								::MessageBoxA(hwnd, err_msg.c_str(), path.c_str(), MB_OK | MB_ICONERROR);
+								return 2;
+							}
+							else {
+								return 1;
+							}
+						}
+					}
+					default:
+						return CallWindowProc(prevWndProc, hwnd, uMsg, wParam, lParam);
+					}
+					return 0;
+				};
+			};
+			prevWndProc = (WNDPROC)SetWindowLongPtr(hSBWnd, GWL_WNDPROC, (LONG_PTR)&_tagTemp::WndProcedure);
+			
 			activeWnd(hSBWnd);
-			s_RunDlg(hSBWnd, nullptr, homePath, nullptr, nullptr, 0x4 | 0x1);
+			s_RunDlg(hSBWnd, nullptr, nullptr, nullptr, nullptr, 0x4 | 0x1);
 			::DestroyWindow(hSBWnd);
 		}
 		return hSBWnd != nullptr;
@@ -175,23 +225,23 @@ public:
 				if (className == "Shell_SecondaryTrayWnd"
 					|| className == "Shell_TrayWnd"
 					|| className == "WorkerW"
-					|| className=="SysShadow"
-					|| className=="TaskListThumbnailWnd")
+					|| className == "SysShadow"
+					|| className == "TaskListThumbnailWnd")
 				{
 					continue;
 				}
 
 				//调试时不隐藏
-			#ifdef _DEBUG
+#ifdef _DEBUG
 				if (titleName.find("Microsoft Visual Studio(管理员)") != std::string::npos
 					&& titleName.find("(正在") != std::string::npos)
 				{
 					//continue;
 				}
 				//if (className == "HwndWrapper[DefaultDomain;;4da6d4be-d0ca-41a1-b9a9-bf651e51960c]") continue;
-			#endif // _DEBUG
+#endif // _DEBUG
 
-				//最后判断这个窗口是否在这个显示器中
+	//最后判断这个窗口是否在这个显示器中
 				RECT rct = { 0 };
 				if (!::GetWindowRect(hWndCCC, &rct)) continue;
 
@@ -244,7 +294,7 @@ public:
 
 				if (rc.hOwerWnd)
 				{
- 					ShowOwnedPopups(rc.hOwerWnd, true);
+					ShowOwnedPopups(rc.hOwerWnd, true);
 				}
 				else
 				{
@@ -254,10 +304,10 @@ public:
 					hLastWnd = rc.wnd;
 				}
 
-									SetWindowPos(rc.wnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
-					SetWindowPos(rc.wnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE); 
+				SetWindowPos(rc.wnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
+				SetWindowPos(rc.wnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE);
 
-				console.log("显示:{:08X}-{}-{}", (DWORD)rc.wnd, rc.title,rc.cls);
+				console.log("显示:{:08X}-{}-{}", (DWORD)rc.wnd, rc.title, rc.cls);
 			}
 
 			listWnd.clear();
@@ -267,6 +317,92 @@ public:
 
 		return true;
 	}
+
+	static	bool	runApp(etd::string type, etd::string path, etd::string param, etd::string dir,int *lpErrCode=nullptr)
+	{
+		PVOID OldValue = nullptr;
+		BOOL bDisableWow64 = FALSE;
+
+		if (!path.is_full_path())
+		{
+			bDisableWow64 = Wow64DisableWow64FsRedirection(&OldValue);
+		}
+
+		if (dir.empty())
+		{
+			if (path.is_full_path()) dir = path.to_file_dir();
+			else {
+				char szBuffer[1024] = { 0 };
+				GetEnvironmentVariableA("USERPROFILE", szBuffer, sizeof(szBuffer));
+				dir = szBuffer;
+			}
+		}
+
+		SHELLEXECUTEINFOA execInfo = { 0 };
+		execInfo.cbSize = sizeof(execInfo);
+		execInfo.lpVerb="open";
+		execInfo.lpFile = path.c_str();
+		if (!param.empty()) execInfo.lpParameters = param.c_str();
+		if (!dir.empty()) execInfo.lpDirectory = dir.c_str();
+		execInfo.nShow = SW_SHOWNORMAL;
+		
+		execInfo.fMask = SEE_MASK_FLAG_NO_UI;
+		execInfo.fMask |= SEE_MASK_HMONITOR;
+
+		execInfo.hMonitor = getCurrentMonitor();
+
+		bool result = ShellExecuteExA(&execInfo);
+
+/*
+		auto result = ShellExecuteA(nullptr,
+			type.empty() ? nullptr : type.data(),
+			path.data(),
+			param.empty() ? nullptr : param.data(),
+			dir.empty() ? nullptr : dir.data(),
+			SW_SHOWNORMAL);*/
+
+		if (bDisableWow64) Wow64RevertWow64FsRedirection(OldValue);
+
+		if (lpErrCode)
+		{
+			*lpErrCode = (int)execInfo.hInstApp;
+		}
+		return (int)execInfo.hInstApp>32;
+	}
+
+/*
+	static	bool	runApp(etd::string type, etd::string path, etd::string param, etd::string dir)
+	{
+		PVOID OldValue = nullptr;
+		BOOL bDisableWow64 = FALSE;
+
+		if (!path.is_full_path())
+		{
+			bDisableWow64 = Wow64DisableWow64FsRedirection(&OldValue);
+		}
+
+		if (dir.empty())
+		{
+			if (path.is_full_path()) dir = path.to_file_dir();
+			else {
+				//dir = "XXX";
+				char szBuffer[1024] = { 0 };
+				GetEnvironmentVariableA("USERPROFILE", szBuffer, sizeof(szBuffer));
+				dir = szBuffer;
+			}
+		}
+
+		auto result = ShellExecuteA(nullptr,
+			type.empty() ? nullptr : type.data(),
+			path.data(),
+			param.empty() ? nullptr : param.data(),
+			dir.empty() ? nullptr : dir.data(),
+			SW_SHOWNORMAL);
+
+		if (bDisableWow64) Wow64RevertWow64FsRedirection(OldValue);
+
+		return result > (HINSTANCE)32;
+	}*/
 
 	//窗口信息
 	static std::string getWndClass(HWND hWnd)
@@ -310,7 +446,7 @@ public:
 	}
 
 	//当前监视器句柄
-	static HMONITOR getCurrentMonitor(POINT *lppos=nullptr)
+	static HMONITOR getCurrentMonitor(POINT* lppos = nullptr)
 	{
 		if (!lppos)
 		{

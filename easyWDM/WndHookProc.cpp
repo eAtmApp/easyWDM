@@ -4,17 +4,17 @@
 void easyWDM::WndHookProc(HWND hWnd, bool isCreate)
 {
 	if (!hWnd) return;
+		
+	auto hCurMonitor = helper::getCurrentMonitor();
 
-	auto hMonitor = helper::getCurrentMonitor();
+	helper::showOwerWnd(hCurMonitor, false);
+	
 
-	helper::showOwerWnd(hMonitor,false);
 
 	//调试
-	{
-		auto txtName = helper::getWndTitle(hWnd);
-		auto className = helper::getWndClass(hWnd);
-		//console.log("激活窗口:{} - {}", className, txtName);
-	}
+	auto txtName = helper::getWndTitle(hWnd);
+	auto className = helper::getWndClass(hWnd);
+	//console.log("激活窗口:{} - {}", className, txtName);
 	
 	//只转移创建后5秒内显示的窗口
 	constexpr auto MAX_WAIT_TIME = 5;
@@ -22,6 +22,8 @@ void easyWDM::WndHookProc(HWND hWnd, bool isCreate)
 	static auto s_last_clear_tick = (DWORD)(::GetTickCount64() / 1000);
 
 	auto dwCurTick = (DWORD)(::GetTickCount64() / 1000);
+
+	EASY_STATIC_LOCK();
 
 	if (isCreate)
 	{
@@ -57,8 +59,14 @@ void easyWDM::WndHookProc(HWND hWnd, bool isCreate)
 	RECT rct = { 0 };
 	if (!::GetWindowRect(hWnd, &rct)) return;
 
-	auto wndMonitor = MonitorFromRect(&rct, MONITOR_DEFAULTTONEAREST);
-	if (wndMonitor == hMonitor || wndMonitor == nullptr) return;
+	auto wndMonitor = ::MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST);
+	if (wndMonitor == hCurMonitor) return;
+
+	if (wndMonitor == nullptr)
+	{
+		console.error("得到窗口显示器句柄失败:{}", className);
+		return;
+	}
 
 	RECT monRct = { 0 };
 	if (!helper::getCurrentMonitorRecv(&monRct)) return;
@@ -74,41 +82,7 @@ void easyWDM::WndHookProc(HWND hWnd, bool isCreate)
 	bool is_handler = false;
 
 	int x = 0, y = 0;
-
-	//处理运行窗口
-	/*
-	if (wndWidth < 500 && wndWidth >= 400 && wndHeight <= 300 && wndHeight >= 200
-		&& helper::getWndTitle(hWnd) == "运行" && helper::getWndClass(hWnd) == "#32770")
-	{
-		x = monRct.left;
-		y = monRct.bottom - wndHeight;
-
-		HWND hTaskBar = helper::GetCurrentMonitorStartMenuWnd();
-		hTaskBar = ::GetParent(hTaskBar);
-		if (hTaskBar)
-		{
-			RECT rct = { 0 };
-			if (::GetWindowRect(hTaskBar, &rct))
-			{
-				auto barWidth = rct.right - rct.left;
-				auto barHeight = rct.bottom - rct.top;
-				if (rct.left = monRct.left)
-				{
-					//在下面
-					if (barWidth == monWidth && rct.bottom == monRct.bottom)
-					{
-						y -= barHeight;
-					}
-					else if (barHeight == monHeight)
-					{
-						x += barWidth;
-					}
-				}
-				is_handler = true;
-			}
-		}
-	}*/
-
+	
 	if (!is_handler)
 	{
 		POINT pos;
@@ -128,7 +102,10 @@ void easyWDM::WndHookProc(HWND hWnd, bool isCreate)
 		}
 	}
 
-	auto ret = SetWindowPos(hWnd, HWND_NOTOPMOST, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_ASYNCWINDOWPOS);
+	//::MoveWindow(hWnd, x, y, wndWidth, wndHeight, TRUE);
 
-	console.log("修改位置-相对坐标:{}*{}", (int)(x - monRct.left), (int)(y - monRct.top));
+	//auto ret = SetWindowPos(hWnd, HWND_NOTOPMOST, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_ASYNCWINDOWPOS);
+	auto ret = SetWindowPos(hWnd, HWND_NOTOPMOST, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_DRAWFRAME);
+	
+	console.log("转移显示器({}): {}*{}", className,(int)(x - monRct.left), (int)(y - monRct.top));
 }

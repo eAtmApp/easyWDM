@@ -12,14 +12,18 @@ bool easyWDM::HandlerHotkey(UCHAR ukey, DWORD flags_)
 
 	auto it = _map_hotkey.find(dwFlags);
 	if (it == _map_hotkey.end()) return false;
-	return it->second();
-	return false;
+	it->second();
+	return true;
 }
 
 bool easyWDM::KeyMessage(UINT uType, KBDLLHOOKSTRUCT* pHook)
 {
-	if (pHook->dwExtraInfo == 0x3412259) return false;
-
+	if (pHook->dwExtraInfo == 0x3412259)
+	{
+		console.log("收到标志");
+		return false;
+	}
+	
 	UCHAR uKey = (UCHAR)pHook->vkCode;
 
 	bool is_handler = false;
@@ -46,6 +50,10 @@ bool easyWDM::KeyMessage(UINT uType, KBDLLHOOKSTRUCT* pHook)
 	if (uType == WM_KEYDOWN && ((uKey >= '0' && uKey <= '9') || (uKey >= 'A' && uKey <= 'Z') || (uKey >= VK_F1 && uKey <= VK_F24)))
 	{
 		DWORD flags = key_status.get_hotkey_flags();
+		if (flags!=0)
+		{
+			int x = 0;
+		}
 		if (uKey >= VK_F1 && uKey <= VK_F24)
 		{
 			if (HandlerHotkey(uKey, flags))
@@ -64,31 +72,29 @@ bool easyWDM::KeyMessage(UINT uType, KBDLLHOOKSTRUCT* pHook)
 
 	//过滤win键
 	{
-		static	bool	_is_filter_win = false;
-
-		if (uType == WM_KEYDOWN && !is_handler && _is_filter_win && uKey != VK_LWIN)
+		if (uType == WM_KEYDOWN && !is_handler && m_filter_win_status && uKey != VK_LWIN)
 		{
-			//console.debug("还原WIN");
-			_is_filter_win = false;
+			console.log("发送按下WIN");
+			m_filter_win_status = false;
 			keybd_event(VK_LWIN, 0, KEYEVENTF_EXTENDEDKEY | 0, 0x3412259);
 			//keybd_event(VK_LWIN, 0, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0);
 		}
-
+		
 		if (uKey == VK_LWIN)
 		{
 			//单按下过滤
 			if (uType == WM_KEYDOWN && key_status.get_hotkey_flags_noBy(FLAGS_WIN) == 0)
 			{
-				_is_filter_win = true;
+				m_filter_win_status = true;
 				is_handler = true;
-				//console.log("过滤WIN");
+				console.log("过滤WIN");
 			}
 
 			//弹起重置标志
-			if (uType == WM_KEYUP && _is_filter_win)
+			if (uType == WM_KEYUP && m_filter_win_status)
 			{
-				//console.log("重置WIN");
-				_is_filter_win = false;
+				console.log("重置WIN");
+				m_filter_win_status = false;
 				is_handler = true;
 			}
 		}

@@ -1,0 +1,45 @@
+{
+	"hook_key" : true,
+	"hook_mouse" : true,
+	"hook_windows" : true,
+	"hotkey" : 
+	{
+		"win" : 
+		{
+			"type" : "start"
+		},
+		"win+c" : 
+		{
+			"dir" : "d:\\",
+			"param" : null,
+			"path" : "cmd.exe",
+			"type" : "open"
+		},
+		"win+d" : 
+		{
+			"type" : "desktop"
+		},
+		"win+e" : 
+		{
+			"dir" : null,
+			"param" : "::{20D04FE0-3AEA-1069-A2D8-08002B30309D}",
+			"path" : "explorer.exe",
+			"type" : "open"
+		},
+		"win+l" : 
+		{
+			"type" : "null"
+		},
+		"win+r" : 
+		{
+			"type" : "run"
+		},
+		"win+z" : 
+		{
+			"path" : "calc.exe",
+			"type" : "open"
+		}
+	},
+	"m_bIs_limit_mouse" : false,
+	"raw_input" : false
+}

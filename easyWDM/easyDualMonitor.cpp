@@ -27,6 +27,8 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
 {
 	helper::m_runDlgIcon = LoadIcon(::GetModuleHandleA(nullptr), MAKEINTRESOURCEA(IDI_TRAYICONDEMO));
 
+	console.set_logfile();
+
 	process.set_current_dir();
 
 	process.set_app_name(app_name);

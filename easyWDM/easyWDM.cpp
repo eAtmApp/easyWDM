@@ -4,6 +4,9 @@
 #include <hidsdi.h>
 #pragma comment(lib, "Dwmapi.lib")
 
+#include <wtsapi32.h>
+#pragma comment(lib, "Wtsapi32.lib")
+
 easyWDM::easyWDM(tray_icon& tray)
 	:_tray(tray)
 {
@@ -83,7 +86,7 @@ bool easyWDM::initConfig()
 	jsoncpp& hotkey = _config["hotkey"];
 	hotkey.forEach([&](std::string_view key, jsoncpp& item)
 		{
-			bool result = SetHotkey(std::string(key), [&item]()
+			bool result = SetHotkey(std::string(key), [this,&item]()
 				{
 					etd::string optype = item["type"];
 					optype.tolower();
@@ -92,7 +95,16 @@ bool easyWDM::initConfig()
 						etd::string_view path = item["path"];
 						etd::string_view param = item["param"];
 						etd::string_view dir = item["dir"];
+						
+						if (path.empty())
+						{
+							console.error("open操作没有路径.");
+							return false;
+						}
 
+						return helper::runApp(optype, path, param, dir);
+
+/*
 						auto result = ShellExecuteA(nullptr,
 							optype.empty() ? nullptr : optype.data(),
 							path.empty() ? nullptr : path.data(),
@@ -100,7 +112,7 @@ bool easyWDM::initConfig()
 							dir.empty() ? nullptr : dir.data(),
 							SW_SHOWNORMAL);
 
-						return result > (HINSTANCE)32;
+						return result > (HINSTANCE)32;*/
 					}
 					else if (optype == "desktop")	//显示桌面
 					{
@@ -143,7 +155,7 @@ bool easyWDM::initConfig()
 
 	//内置功能
 	SetHotkey("win+d", helper::ShowDisktop);
-	SetHotkey("win+r", std::bind(helper::ShowRunDlg, false));
+	SetHotkey("win+r", std::bind(helper::ShowRunDlg,false));
 	SetHotkey("win", helper::show_StartMenu);
 
 	return true;
@@ -248,14 +260,32 @@ bool easyWDM::initWDM()
 
 		_tray.set_msg_handler(g_Shell_Wnd_Msg_ID, [&](WPARAM wParam, LPARAM lParam)
 			{
+				bool is_create = false;
+
+				auto hWnd = (HWND)lParam;
+
 				if (wParam == HSHELL_WINDOWCREATED)
 				{
-					WndHookProc((HWND)lParam, true);
+
+					std::thread thread_(&easyWDM::WndHookProc, this, hWnd,true);
+					thread_.detach();
+
+					//WndHookProc((HWND)lParam, true);
 				}
 				else if (wParam == HSHELL_WINDOWACTIVATED
 					|| wParam == HSHELL_RUDEAPPACTIVATED)
 				{
-					WndHookProc((HWND)lParam, false);
+					//console.log("wnd:{},wParam:{}", (DWORD)lParam, (DWORD)wParam);
+					
+					auto txtName = helper::getWndTitle(hWnd);
+					auto className = helper::getWndClass(hWnd);
+
+					console.log("激活窗口({:08X}):{} - {}", (DWORD)hWnd,className, txtName);
+
+					std::thread thread_(&easyWDM::WndHookProc, this, hWnd, false);
+					thread_.detach();
+
+					//WndHookProc((HWND)lParam, false);
 				}
 			});
 	}
@@ -325,9 +355,25 @@ bool easyWDM::initWDM()
 				} while (false);
 			});
 	}
+	
+	if (WTSRegisterSessionNotification(_tray.GetWnd(), NOTIFY_FOR_THIS_SESSION))
+	{
+		_tray.set_msg_handler(WM_WTSSESSION_CHANGE, [&](WPARAM wParam, LPARAM lParam)
+			{
+				if (wParam== WTS_SESSION_UNLOCK)
+				{
+					key_status.reset();
+				}
+				m_filter_win_status = false;
+				console.log("WM_WTSSESSION_CHANGE消息:{:02x}", wParam);
+			});
+	}
+	else {
+		console.error("WTSRegisterSessionNotification失败,{}", ::GetLastError());
+	}
 
 	//init_hid();
-
+	
 	//std::thread rawinput(&easyWDM::initRawInput, this);
 	//rawinput.detach();
 

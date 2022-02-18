@@ -284,8 +284,7 @@ LRESULT CALLBACK tray_icon::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPAR
 
 		return false;
 	}
-
-
+	
 	void tray_icon::run()
 	{
 		MSG msg;
