@@ -1,21 +1,62 @@
 #include "pch.h"
 #include "easyWDM.h"
 
+//窗口是否匹配
+bool easyWDM::is_match(eString configName, eStringV psName, eStringV title, eStringV cls)
+{
+	if (psName.empty()) return false;
+
+	//hook_windows_filter
+
+	if (_config[configName].isArray())
+	{
+		bool _match = _config[configName].some([&](jsoncpp& item)
+			{
+				if (item["ps"].isString())
+				{
+					if (psName.compare_icase(item["ps"].asString()))
+					{
+						return true;
+					}
+				}
+				return false;
+			});
+
+		return _match;
+	}
+
+	return false;
+}
+
 void easyWDM::WndHookProc(HWND hWnd, bool isCreate)
 {
 	if (!hWnd) return;
-		
+
 	auto hCurMonitor = helper::getCurrentMonitor();
 
 	helper::showOwerWnd(hCurMonitor, false);
-	
-
 
 	//调试
 	auto txtName = helper::getWndTitle(hWnd);
 	auto className = helper::getWndClass(hWnd);
-	//console.log("激活窗口:{} - {}", className, txtName);
+	eString psName = helper::getProcessName(hWnd);
+
+	//处理需要隐藏的窗口
+	if (is_match("hook_windows_hide", psName, txtName, className))
+	{
+		console.log("隐藏窗口:{:08X} - {} -　{} - {}", (DWORD)hWnd, txtName, className, psName);
+		::ShowWindow(hWnd, SW_HIDE);
+		return;
+	}
+
+	//处理需要排队的窗口
+	if (is_match("hook_windows_filter", psName, txtName, className))
+	{
+		return;
+	}
 	
+	//console.log("激活窗口:{} - {}", className, txtName);
+
 	//只转移创建后5秒内显示的窗口
 	constexpr auto MAX_WAIT_TIME = 5;
 
@@ -82,7 +123,7 @@ void easyWDM::WndHookProc(HWND hWnd, bool isCreate)
 	bool is_handler = false;
 
 	int x = 0, y = 0;
-	
+
 	if (!is_handler)
 	{
 		POINT pos;
@@ -104,8 +145,18 @@ void easyWDM::WndHookProc(HWND hWnd, bool isCreate)
 
 	//::MoveWindow(hWnd, x, y, wndWidth, wndHeight, TRUE);
 
+	if (!psName.empty())
+	{
+
+	}
+
+	bool isMax = ::IsZoomed(hWnd);
+
 	//auto ret = SetWindowPos(hWnd, HWND_NOTOPMOST, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_ASYNCWINDOWPOS);
-	auto ret = SetWindowPos(hWnd, HWND_NOTOPMOST, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_DRAWFRAME);
-	
-	console.log("转移显示器({}): {}*{}", className,(int)(x - monRct.left), (int)(y - monRct.top));
+	auto ret = SetWindowPos(hWnd, HWND_NOTOPMOST, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+
+	if (isMax) ::ShowWindow(hWnd, SW_SHOWMAXIMIZED);
+
+	//SWP_DRAWFRAME
+	console.log("转移显示器-(PS:{}) ({}): {}*{}", psName, className, (int)(x - monRct.left), (int)(y - monRct.top));
 }

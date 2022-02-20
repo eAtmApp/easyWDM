@@ -40,6 +40,8 @@ private:
 
 	bool	m_bIs_limit_mouse = true;
 
+	bool	is_match(eString configName, eStringV psName, eStringV title, eStringV cls);
+
 	void	WndHookProc(HWND hWnd, bool isCreate);
 	std::map<HWND, DWORD> _mapWndTick;
 

@@ -17,6 +17,7 @@ using namespace easy;
 #define MID_MOVE_WND 3
 #define MID_LIMIT 4
 #define MID_AUTO_RUN 5
+#define MID_RELOAD_CONFIG 6
 
 static constexpr auto app_name = "easyWDM";
 
@@ -51,12 +52,19 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
 				tray.SetCheck(is_enable);
 			}
 		});
+/*
+	tray.AddSeparator();
+	tray.AddMenu("重新加载配置", [&]()
+		{
+
+		});*/
+
 	tray.AddSeparator();
 	tray.AddMenu("退出(&X)", [&]()
 		{
 			tray.close();
 		});
-	
+
 	tray.SetCheck(MID_AUTO_RUN, process.is_autorun());
 
 	wdm.initWDM();

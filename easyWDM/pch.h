@@ -8,5 +8,4 @@
 
 #include <cstdint>
 
-
 #endif //PCH_H

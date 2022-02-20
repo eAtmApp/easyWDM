@@ -5,6 +5,8 @@
 #include <combaseapi.h>
 #include <shldisp.h>
 
+#include <tlhelp32.h>
+
 using namespace easy;
 
 class helper
@@ -12,6 +14,38 @@ class helper
 public:
 
 	inline static	HICON	m_runDlgIcon = nullptr;
+
+	static eString getProcessName(DWORD dwProcessId)
+	{
+		eString result;
+		HANDLE hSnapShot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+		if (hSnapShot)
+		{
+			PROCESSENTRY32 pe32 = { 0 };
+			pe32.dwSize = sizeof(PROCESSENTRY32);
+			if (::Process32First(hSnapShot, &pe32))
+			{
+				do
+				{
+					if (dwProcessId == pe32.th32ProcessID)
+					{
+						result = pe32.szExeFile;
+						break;
+					}
+				} while (::Process32Next(hSnapShot, &pe32));
+			}
+			CloseHandle(hSnapShot);
+		}
+		return result;
+	}
+
+	static eString getProcessName(HWND hWnd)
+	{
+		DWORD pid = 0;
+		GetWindowThreadProcessId(hWnd, &pid);
+		if (pid) return getProcessName(pid);
+		return "";
+	}
 
 	static bool ShowRunDlg(bool is_thread = false)
 	{
@@ -59,7 +93,7 @@ public:
 							eString path = util::unicode_ansi(param->lpszFile);
 							
 							int error_code = 0;
-							if (!runApp("open", path, "", "",&error_code))
+							if (!runApp("open", path, "", "",-1,&error_code))
 							{
 								eString err_type;
 								switch (error_code)
@@ -318,7 +352,7 @@ public:
 		return true;
 	}
 
-	static	bool	runApp(etd::string type, etd::string path, etd::string param, etd::string dir,int *lpErrCode=nullptr)
+	static	bool	runApp(etd::string type, etd::string path, etd::string param, etd::string dir,int showtype=-1,int *lpErrCode=nullptr)
 	{
 		PVOID OldValue = nullptr;
 		BOOL bDisableWow64 = FALSE;
@@ -327,6 +361,8 @@ public:
 		{
 			bDisableWow64 = Wow64DisableWow64FsRedirection(&OldValue);
 		}
+
+		if (showtype == -1) showtype = SW_SHOWDEFAULT;
 
 		if (dir.empty())
 		{
@@ -344,7 +380,7 @@ public:
 		execInfo.lpFile = path.c_str();
 		if (!param.empty()) execInfo.lpParameters = param.c_str();
 		if (!dir.empty()) execInfo.lpDirectory = dir.c_str();
-		execInfo.nShow = SW_SHOWNORMAL;
+		execInfo.nShow = showtype;
 		
 		execInfo.fMask = SEE_MASK_FLAG_NO_UI;
 		execInfo.fMask |= SEE_MASK_HMONITOR;
@@ -426,6 +462,8 @@ public:
 	static bool getCurrentMonitorRecv(RECT* lpRect)
 	{
 		auto hMon = getCurrentMonitor();
+		if (!hMon) return false;
+
 		auto rct = getMonitorRecv(hMon);
 		memcpy(lpRect, &rct, sizeof(RECT));
 		return true;
@@ -433,13 +471,15 @@ public:
 
 	static RECT getMonitorRecv(HMONITOR hMon)
 	{
+		ASSERT(hMon != nullptr);
 		RECT rct = { 0 };
 		MONITORINFOEX moninfo = { 0 };
 		moninfo.cbSize = sizeof(moninfo);
 
 		if (!GetMonitorInfoA(hMon, &moninfo))
 		{
-			ASSERT(0);
+			console.out_api_error("MonitorFromPoint");
+			return rct;
 		}
 		memcpy(&rct, &moninfo.rcMonitor, sizeof(RECT));
 		return rct;
@@ -448,15 +488,25 @@ public:
 	//当前监视器句柄
 	static HMONITOR getCurrentMonitor(POINT* lppos = nullptr)
 	{
+		POINT pos = { 0 };
+
 		if (!lppos)
 		{
-			POINT pos = { 0 };
-			if (!GetCursorPos(&pos)) return nullptr;
-			return MonitorFromPoint(pos, MONITOR_DEFAULTTONEAREST);
+			if (!GetCursorPos(&pos))
+			{
+				console.out_api_error("GetCursorPos");
+				return nullptr;
+			}
+			lppos = &pos;
 		}
-		else {
-			return MonitorFromPoint(*lppos, MONITOR_DEFAULTTONEAREST);
+
+		auto ret= MonitorFromPoint(*lppos, MONITOR_DEFAULTTONEAREST);
+		if (ret==nullptr)
+		{
+			console.out_api_error("MonitorFromPoint");
+			return nullptr;
 		}
+		return ret;
 	}
 
 	//当前监视器开始菜单按钮句柄
@@ -503,29 +553,34 @@ public:
 	//显示开始菜单
 	static bool		show_StartMenu()
 	{
-		HWND hStartWnd = GetCurrentMonitorStartMenuWnd();
-		if (!hStartWnd) return false;
 
-		HWND hWnd = GetParent(hStartWnd);
-		HWND hForeWnd;
-		DWORD dwForeID;
-		DWORD dwCurID;
-		hForeWnd = GetForegroundWindow();
-		dwCurID = GetCurrentThreadId();
-		dwForeID = GetWindowThreadProcessId(hForeWnd, nullptr);
-		AttachThreadInput(dwCurID, dwForeID, TRUE);
-		ShowWindow(hWnd, SW_SHOWNORMAL);
-		SetWindowPos(hWnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
-		SetWindowPos(hWnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
-		SetForegroundWindow(hWnd);
-		AttachThreadInput(dwCurID, dwForeID, FALSE);
+		auto thread_proc = []() {
+			HWND hStartWnd = GetCurrentMonitorStartMenuWnd();
+			if (!hStartWnd) return false;
 
-		//::PostMessage(GetParent(hWnd), WM_COMMAND, MAKELONG(401, 0), NULL);
+			HWND hWnd = GetParent(hStartWnd);
+			HWND hForeWnd;
+			DWORD dwForeID;
+			DWORD dwCurID;
+			hForeWnd = GetForegroundWindow();
+			dwCurID = GetCurrentThreadId();
+			dwForeID = GetWindowThreadProcessId(hForeWnd, nullptr);
+			AttachThreadInput(dwCurID, dwForeID, TRUE);
+			ShowWindow(hWnd, SW_SHOWNORMAL);
+			SetWindowPos(hWnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
+			SetWindowPos(hWnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
+			SetForegroundWindow(hWnd);
+			AttachThreadInput(dwCurID, dwForeID, FALSE);
+			
+			PostMessageA(hStartWnd, WM_MOUSEMOVE, 0, MAKELONG(30, 30));
+			PostMessageA(hStartWnd, WM_LBUTTONDOWN, 0, MAKELONG(30, 30));
+			PostMessageA(hStartWnd, WM_LBUTTONUP, 0, MAKELONG(30, 30));
 
-		PostMessageA(hStartWnd, WM_MOUSEMOVE, 0, MAKELONG(30, 30));
-		PostMessageA(hStartWnd, WM_LBUTTONDOWN, 0, MAKELONG(30, 30));
-		PostMessageA(hStartWnd, WM_LBUTTONUP, 0, MAKELONG(30, 30));
+			return false;
+		};
 
+		std::thread thread(thread_proc);
+		thread.detach();
 		return true;
 	}
 };

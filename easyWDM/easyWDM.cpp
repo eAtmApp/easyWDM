@@ -12,7 +12,7 @@ easyWDM::easyWDM(tray_icon& tray)
 {
 	m_pThis = this;
 }
- 
+
 easyWDM::~easyWDM()
 {
 	UninstallHook();
@@ -77,6 +77,57 @@ bool easyWDM::initConfig()
 		return false;
 	}
 
+	return true;
+}
+
+bool easyWDM::SetHotkey(std::string hotkey, hotkey_handler&& handler)
+{
+	DWORD dwFlags = _KEYS_STATUS::keyString_to_Flags(hotkey);
+	if (dwFlags == 0) return false;
+	if (handler)
+	{
+		if (_map_hotkey.find(dwFlags) != _map_hotkey.end()) return false;
+		_map_hotkey[dwFlags] = handler;
+	}
+	else {
+		_map_hotkey.erase(dwFlags);
+	}
+	return true;
+}
+
+bool easyWDM::set_limit_mouse()
+{
+	m_bIs_limit_mouse = !m_bIs_limit_mouse;
+	console.debug("鼠标限制状态:{}", m_bIs_limit_mouse);
+	if (m_bIs_limit_mouse)
+	{
+		_tray.SetIcon(IDI_LOCK);
+	}
+	else {
+		_tray.SetIcon(IDI_TRAYICONDEMO);
+	}
+
+	_config["m_bIs_limit_mouse"] = m_bIs_limit_mouse;
+	_config.writeConfig();
+
+	return true;
+}
+
+bool easyWDM::initWDM()
+{
+	std::map<int, std::string> tesmap;
+
+	tesmap[3] = "abcdefg";
+
+	auto& str = tesmap[3];
+
+	auto& str2 = tesmap[4];
+	str2 = "abcdefg";
+
+	//helper::ShowDisktop();
+
+	if (!initConfig()) return false;
+
 	if (_config["hook_mouse"])
 	{
 		SetHotkey("ctrl", std::bind(&easyWDM::set_limit_mouse, this));
@@ -86,7 +137,7 @@ bool easyWDM::initConfig()
 	jsoncpp& hotkey = _config["hotkey"];
 	hotkey.forEach([&](std::string_view key, jsoncpp& item)
 		{
-			bool result = SetHotkey(std::string(key), [this,&item]()
+			bool result = SetHotkey(std::string(key), [this, &item]()
 				{
 					etd::string optype = item["type"];
 					optype.tolower();
@@ -95,24 +146,34 @@ bool easyWDM::initConfig()
 						etd::string_view path = item["path"];
 						etd::string_view param = item["param"];
 						etd::string_view dir = item["dir"];
-						
+
+						int showtype = -1;
+						if (!item["show"].isNull()) showtype = item["show"].asInt();
+
 						if (path.empty())
 						{
 							console.error("open操作没有路径.");
 							return false;
 						}
 
-						return helper::runApp(optype, path, param, dir);
+						int errcode = 0;
+						if (!helper::runApp(optype, path, param, dir, showtype, &errcode))
+						{
+							console.error("运行{}失败,返回错误代码:{}", path, errcode);
+							return false;
+						}
 
-/*
-						auto result = ShellExecuteA(nullptr,
-							optype.empty() ? nullptr : optype.data(),
-							path.empty() ? nullptr : path.data(),
-							param.empty() ? nullptr : param.data(),
-							dir.empty() ? nullptr : dir.data(),
-							SW_SHOWNORMAL);
+						return true;
 
-						return result > (HINSTANCE)32;*/
+						/*
+												auto result = ShellExecuteA(nullptr,
+													optype.empty() ? nullptr : optype.data(),
+													path.empty() ? nullptr : path.data(),
+													param.empty() ? nullptr : param.data(),
+													dir.empty() ? nullptr : dir.data(),
+													SW_SHOWNORMAL);
+
+												return result > (HINSTANCE)32;*/
 					}
 					else if (optype == "desktop")	//显示桌面
 					{
@@ -155,60 +216,9 @@ bool easyWDM::initConfig()
 
 	//内置功能
 	SetHotkey("win+d", helper::ShowDisktop);
-	SetHotkey("win+r", std::bind(helper::ShowRunDlg,false));
+	SetHotkey("win+r", std::bind(helper::ShowRunDlg, false));
 	SetHotkey("win", helper::show_StartMenu);
 
-	return true;
-}
-
-bool easyWDM::SetHotkey(std::string hotkey, hotkey_handler&& handler)
-{
-	DWORD dwFlags = _KEYS_STATUS::keyString_to_Flags(hotkey);
-	if (dwFlags == 0) return false;
-	if (handler)
-	{
-		if (_map_hotkey.find(dwFlags) != _map_hotkey.end()) return false;
-		_map_hotkey[dwFlags] = handler;
-	}
-	else {
-		_map_hotkey.erase(dwFlags);
-	}
-	return true;
-}
-
-bool easyWDM::set_limit_mouse()
-{
-	m_bIs_limit_mouse = !m_bIs_limit_mouse;
-	console.debug("鼠标限制状态:{}", m_bIs_limit_mouse);
-	if (m_bIs_limit_mouse)
-	{
-		_tray.SetIcon(IDI_LOCK);
-	}
-	else {
-		_tray.SetIcon(IDI_TRAYICONDEMO);
-	}
-
-	 _config["m_bIs_limit_mouse"]= m_bIs_limit_mouse;
-	_config.writeConfig();
-
-	return true;
-}
-
-bool easyWDM::initWDM()
-{
-	std::map<int, std::string> tesmap;
-	
-	tesmap[3] = "abcdefg";
-
-	auto& str = tesmap[3];
-
-	auto& str2 = tesmap[4];
-	str2 = "abcdefg";
-
-	//helper::ShowDisktop();
-
-	if (!initConfig()) return false;
-	
 	//键盘钩子
 	if (_config["hook_key"])
 	{
@@ -241,7 +251,7 @@ bool easyWDM::initWDM()
 			return false;
 		}
 	}
-	
+
 	//窗口勾子
 	if (_config["hook_windows"] || _config["hook_key"])
 	{
@@ -264,28 +274,20 @@ bool easyWDM::initWDM()
 
 				auto hWnd = (HWND)lParam;
 
-				if (wParam == HSHELL_WINDOWCREATED)
-				{
-
-					std::thread thread_(&easyWDM::WndHookProc, this, hWnd,true);
-					thread_.detach();
-
-					//WndHookProc((HWND)lParam, true);
-				}
-				else if (wParam == HSHELL_WINDOWACTIVATED
+				if (wParam == HSHELL_WINDOWCREATED
+					|| wParam == HSHELL_WINDOWACTIVATED
 					|| wParam == HSHELL_RUDEAPPACTIVATED)
 				{
-					//console.log("wnd:{},wParam:{}", (DWORD)lParam, (DWORD)wParam);
-					
-					auto txtName = helper::getWndTitle(hWnd);
-					auto className = helper::getWndClass(hWnd);
+					bool isCreate = wParam == HSHELL_WINDOWCREATED;
 
-					console.log("激活窗口({:08X}):{} - {}", (DWORD)hWnd,className, txtName);
-
-					std::thread thread_(&easyWDM::WndHookProc, this, hWnd, false);
+					std::thread thread_(&easyWDM::WndHookProc, this, hWnd, isCreate);
 					thread_.detach();
 
-					//WndHookProc((HWND)lParam, false);
+					/*
+					auto txtName = helper::getWndTitle(hWnd);
+					uto className = helper::getWndClass(hWnd);
+					console.log("创建窗口({:08X}):{} - {}", (DWORD)hWnd, className, txtName);
+					*/
 				}
 			});
 	}
@@ -296,9 +298,9 @@ bool easyWDM::initWDM()
 		RAWINPUTDEVICE rid[2] = { 0 };  //设备信息
 		rid[0].usUsagePage = 0xFF00;
 		rid[0].usUsage = 0;
-		rid[0].dwFlags = RIDEV_INPUTSINK| RIDEV_PAGEONLY;
+		rid[0].dwFlags = RIDEV_INPUTSINK | RIDEV_PAGEONLY;
 		rid[0].hwndTarget = _tray.GetWnd();
-		
+
 		if (!RegisterRawInputDevices(rid, 1, sizeof(RAWINPUTDEVICE)))
 		{
 			UninstallHook();
@@ -321,7 +323,7 @@ bool easyWDM::initWDM()
 					//if (raw->header.dwType!= RIM_TYPEMOUSE) break;
 					//if (raw->header.dwType == RIM_TYPEMOUSE) break;
 
-					if (raw->header.dwType==RIM_TYPEHID)
+					if (raw->header.dwType == RIM_TYPEHID)
 					{
 						char szName[2048] = { 0 };
 						if (HidD_GetProductString(raw->header.hDevice, szName, sizeof(szName)))
@@ -333,12 +335,12 @@ bool easyWDM::initWDM()
 
 						char szDevName[1024] = { 0 };
 						UINT uSize = sizeof(szDevName);
-						auto resize=GetRawInputDeviceInfoA(raw->header.hDevice, RIDI_DEVICENAME, szDevName, &uSize);
-						 
+						auto resize = GetRawInputDeviceInfoA(raw->header.hDevice, RIDI_DEVICENAME, szDevName, &uSize);
+
 						auto hid = raw->data.hid;
 
-						console.log("设备类型:{}-{:08X} 数据:{}", raw->header.dwType, (uint64_t)(raw->header.hDevice), 
-							util::binary_to_hex({ (char*)raw+sizeof(RAWINPUTHEADER)+8,(uint64_t)(raw->header.dwSize- sizeof(RAWINPUTHEADER)-8) }));
+						console.log("设备类型:{}-{:08X} 数据:{}", raw->header.dwType, (uint64_t)(raw->header.hDevice),
+							util::binary_to_hex({ (char*)raw + sizeof(RAWINPUTHEADER) + 8,(uint64_t)(raw->header.dwSize - sizeof(RAWINPUTHEADER) - 8) }));
 
 						int x = 0;
 						//console.log("读到数据:{}", );
@@ -355,12 +357,12 @@ bool easyWDM::initWDM()
 				} while (false);
 			});
 	}
-	
+
 	if (WTSRegisterSessionNotification(_tray.GetWnd(), NOTIFY_FOR_THIS_SESSION))
 	{
 		_tray.set_msg_handler(WM_WTSSESSION_CHANGE, [&](WPARAM wParam, LPARAM lParam)
 			{
-				if (wParam== WTS_SESSION_UNLOCK)
+				if (wParam == WTS_SESSION_UNLOCK)
 				{
 					key_status.reset();
 				}
@@ -373,7 +375,7 @@ bool easyWDM::initWDM()
 	}
 
 	//init_hid();
-	
+
 	//std::thread rawinput(&easyWDM::initRawInput, this);
 	//rawinput.detach();
 
