@@ -75,7 +75,7 @@ public:
 		if (hSBWnd)
 		{
 			static WNDPROC prevWndProc;
-			
+
 			struct _tagTemp {
 				static LRESULT CALLBACK WndProcedure(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 					switch (uMsg) {
@@ -91,9 +91,9 @@ public:
 							};
 							auto param = (tagNMRUNFILEDLGW*)lParam;
 							eString path = util::unicode_ansi(param->lpszFile);
-							
+
 							int error_code = 0;
-							if (!runApp("open", path, "", "",-1,&error_code))
+							if (!runApp("open", path, "", "", -1, &error_code))
 							{
 								eString err_type;
 								switch (error_code)
@@ -152,7 +152,7 @@ public:
 				};
 			};
 			prevWndProc = (WNDPROC)SetWindowLongPtr(hSBWnd, GWL_WNDPROC, (LONG_PTR)&_tagTemp::WndProcedure);
-			
+
 			activeWnd(hSBWnd);
 			s_RunDlg(hSBWnd, nullptr, nullptr, nullptr, nullptr, 0x4 | 0x1);
 			::DestroyWindow(hSBWnd);
@@ -352,14 +352,42 @@ public:
 		return true;
 	}
 
-	static	bool	runApp(etd::string type, etd::string path, etd::string param, etd::string dir,int showtype=-1,int *lpErrCode=nullptr)
+	static	bool	runApp(etd::string type, etd::string path, etd::string param, etd::string dir, int showtype = -1, int* lpErrCode = nullptr)
 	{
 		PVOID OldValue = nullptr;
 		BOOL bDisableWow64 = FALSE;
 
+		path.trim();
+
 		if (!path.is_full_path())
 		{
 			bDisableWow64 = Wow64DisableWow64FsRedirection(&OldValue);
+		}
+
+		//处理路径中的空格
+		if (type == "open" && param.empty() &&
+			(path.find(" ") != std::string::npos || path.find("　") != std::string::npos))
+		{
+			bool isYingHao = false;
+			for (size_t i = 0; i < path.size(); i++)
+			{
+				auto c = path[i];
+				if (c == '\"')
+				{
+					isYingHao = !isYingHao;
+					continue;
+				}
+
+				if (c == ' ' || c == '　')
+				{
+					auto tmp = path;
+					path = tmp.substr(0, i);
+					param = tmp.substr(i + 1);
+					path.trim();
+					param.trim();
+					break;
+				}
+			}
 		}
 
 		if (showtype == -1) showtype = SW_SHOWDEFAULT;
@@ -376,12 +404,12 @@ public:
 
 		SHELLEXECUTEINFOA execInfo = { 0 };
 		execInfo.cbSize = sizeof(execInfo);
-		execInfo.lpVerb="open";
+		execInfo.lpVerb = "open";
 		execInfo.lpFile = path.c_str();
 		if (!param.empty()) execInfo.lpParameters = param.c_str();
 		if (!dir.empty()) execInfo.lpDirectory = dir.c_str();
 		execInfo.nShow = showtype;
-		
+
 		execInfo.fMask = SEE_MASK_FLAG_NO_UI;
 		execInfo.fMask |= SEE_MASK_HMONITOR;
 
@@ -389,13 +417,13 @@ public:
 
 		bool result = ShellExecuteExA(&execInfo);
 
-/*
-		auto result = ShellExecuteA(nullptr,
-			type.empty() ? nullptr : type.data(),
-			path.data(),
-			param.empty() ? nullptr : param.data(),
-			dir.empty() ? nullptr : dir.data(),
-			SW_SHOWNORMAL);*/
+		/*
+				auto result = ShellExecuteA(nullptr,
+					type.empty() ? nullptr : type.data(),
+					path.data(),
+					param.empty() ? nullptr : param.data(),
+					dir.empty() ? nullptr : dir.data(),
+					SW_SHOWNORMAL);*/
 
 		if (bDisableWow64) Wow64RevertWow64FsRedirection(OldValue);
 
@@ -403,44 +431,44 @@ public:
 		{
 			*lpErrCode = (int)execInfo.hInstApp;
 		}
-		return (int)execInfo.hInstApp>32;
+		return (int)execInfo.hInstApp > 32;
 	}
 
-/*
-	static	bool	runApp(etd::string type, etd::string path, etd::string param, etd::string dir)
-	{
-		PVOID OldValue = nullptr;
-		BOOL bDisableWow64 = FALSE;
-
-		if (!path.is_full_path())
+	/*
+		static	bool	runApp(etd::string type, etd::string path, etd::string param, etd::string dir)
 		{
-			bDisableWow64 = Wow64DisableWow64FsRedirection(&OldValue);
-		}
+			PVOID OldValue = nullptr;
+			BOOL bDisableWow64 = FALSE;
 
-		if (dir.empty())
-		{
-			if (path.is_full_path()) dir = path.to_file_dir();
-			else {
-				//dir = "XXX";
-				char szBuffer[1024] = { 0 };
-				GetEnvironmentVariableA("USERPROFILE", szBuffer, sizeof(szBuffer));
-				dir = szBuffer;
+			if (!path.is_full_path())
+			{
+				bDisableWow64 = Wow64DisableWow64FsRedirection(&OldValue);
 			}
-		}
 
-		auto result = ShellExecuteA(nullptr,
-			type.empty() ? nullptr : type.data(),
-			path.data(),
-			param.empty() ? nullptr : param.data(),
-			dir.empty() ? nullptr : dir.data(),
-			SW_SHOWNORMAL);
+			if (dir.empty())
+			{
+				if (path.is_full_path()) dir = path.to_file_dir();
+				else {
+					//dir = "XXX";
+					char szBuffer[1024] = { 0 };
+					GetEnvironmentVariableA("USERPROFILE", szBuffer, sizeof(szBuffer));
+					dir = szBuffer;
+				}
+			}
 
-		if (bDisableWow64) Wow64RevertWow64FsRedirection(OldValue);
+			auto result = ShellExecuteA(nullptr,
+				type.empty() ? nullptr : type.data(),
+				path.data(),
+				param.empty() ? nullptr : param.data(),
+				dir.empty() ? nullptr : dir.data(),
+				SW_SHOWNORMAL);
 
-		return result > (HINSTANCE)32;
-	}*/
+			if (bDisableWow64) Wow64RevertWow64FsRedirection(OldValue);
 
-	//窗口信息
+			return result > (HINSTANCE)32;
+		}*/
+
+		//窗口信息
 	static std::string getWndClass(HWND hWnd)
 	{
 		std::string result;
@@ -500,8 +528,8 @@ public:
 			lppos = &pos;
 		}
 
-		auto ret= MonitorFromPoint(*lppos, MONITOR_DEFAULTTONEAREST);
-		if (ret==nullptr)
+		auto ret = MonitorFromPoint(*lppos, MONITOR_DEFAULTTONEAREST);
+		if (ret == nullptr)
 		{
 			console.out_api_error("MonitorFromPoint");
 			return nullptr;
@@ -571,7 +599,7 @@ public:
 			SetWindowPos(hWnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
 			SetForegroundWindow(hWnd);
 			AttachThreadInput(dwCurID, dwForeID, FALSE);
-			
+
 			PostMessageA(hStartWnd, WM_MOUSEMOVE, 0, MAKELONG(30, 30));
 			PostMessageA(hStartWnd, WM_LBUTTONDOWN, 0, MAKELONG(30, 30));
 			PostMessageA(hStartWnd, WM_LBUTTONUP, 0, MAKELONG(30, 30));
