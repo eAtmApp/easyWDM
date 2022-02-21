@@ -279,7 +279,6 @@ bool easyWDM::initWDM()
 					|| wParam == HSHELL_RUDEAPPACTIVATED)
 				{
 					bool isCreate = wParam == HSHELL_WINDOWCREATED;
-
 					std::thread thread_(&easyWDM::WndHookProc, this, hWnd, isCreate);
 					thread_.detach();
 

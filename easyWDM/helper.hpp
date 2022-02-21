@@ -214,6 +214,8 @@ public:
 	//显示当前窗口或当前显示器的弹出窗口
 	static bool showOwerWnd(HMONITOR hMonitor, bool is_active)
 	{
+		EASY_STATIC_LOCK();
+
 		auto& listWnd = _map_Wnd[hMonitor];
 		HWND hLastWnd = nullptr;
 		for (auto it = listWnd.begin(); it != listWnd.end();)

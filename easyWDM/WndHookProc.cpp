@@ -40,6 +40,11 @@ void easyWDM::WndHookProc(HWND hWnd, bool isCreate)
 	auto txtName = helper::getWndTitle(hWnd);
 	auto className = helper::getWndClass(hWnd);
 	eString psName = helper::getProcessName(hWnd);
+	
+	if (isCreate)
+	{
+		console.log("窗口创建:{:08X} - {} -　{} - {}", (DWORD)hWnd, txtName, className, psName);
+	}
 
 	//处理需要隐藏的窗口
 	if (is_match("hook_windows_hide", psName, txtName, className))
