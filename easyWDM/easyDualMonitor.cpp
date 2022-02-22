@@ -27,13 +27,15 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
 	_In_ int       nCmdShow)
 {
 	helper::m_runDlgIcon = LoadIcon(::GetModuleHandleA(nullptr), MAKEINTRESOURCEA(IDI_TRAYICONDEMO));
+	
+	worker.startWork();
 
 	console.set_logfile();
 
 	process.set_current_dir();
 
 	process.set_app_name(app_name);
-
+	
 	if (process.is_already_run())
 	{
 		process.exit("不允许重复运行!");
@@ -70,6 +72,8 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
 	wdm.initWDM();
 
 	tray.run();
+	
+	worker.stop();
 
 	return 0;
 }

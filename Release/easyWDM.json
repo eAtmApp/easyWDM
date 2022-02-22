@@ -1,6 +1,6 @@
 {
 	"hook_key" : true,
-	"hook_mouse" : true,
+	"hook_mouse" : false,
 	"hook_windows" : true,
 	"hotkey" : 
 	{
@@ -8,10 +8,12 @@
 		{
 			"type" : "start"
 		},
+		"win+r": {
+			"type": "run"
+		},
 		"win+c" : 
 		{
-			"dir" : "d:\\",
-			"param" : null,
+			"dir" : "",
 			"path" : "cmd.exe",
 			"type" : "open"
 		},
@@ -21,19 +23,19 @@
 		},
 		"win+e" : 
 		{
-			"dir" : null,
 			"param" : "::{20D04FE0-3AEA-1069-A2D8-08002B30309D}",
 			"path" : "explorer.exe",
-			"type" : "open"
+			"type" : "open",
+			
+			//此处参数ShowWindow常量.
+			"show" : 3
+
 		},
 		"win+l" : 
 		{
 			"type" : "null"
 		},
-		"win+r" : 
-		{
-			"type" : "run"
-		},
+		
 		"win+z" : 
 		{
 			"path" : "calc.exe",
@@ -41,5 +43,22 @@
 		}
 	},
 	"m_bIs_limit_mouse" : false,
-	"raw_input" : false
+	"raw_input" : false,
+
+	//hook窗口需要排除的进程
+	"hook_windows_filter":[
+		{
+			"ps":"cefApp.exe"
+		},
+		{
+			"ps":"chrome.exe"
+		}
+	],
+
+	//需要隐藏的窗口
+	"hook_windows_hide":[
+		{
+			"ps":"v2ray-plugin.exe"
+		}
+	]
 }
