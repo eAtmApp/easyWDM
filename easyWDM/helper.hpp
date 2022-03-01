@@ -7,6 +7,8 @@
 
 #include <tlhelp32.h>
 
+#include <easy/File.h>
+
 using namespace easy;
 
 class helper
@@ -200,7 +202,7 @@ public:
 		if (hRes != S_OK) CloakedVal = 0;
 		return CloakedVal ? true : false;
 	}
-
+	
 	struct _WND_RC
 	{
 		HWND wnd = nullptr;
@@ -354,20 +356,26 @@ public:
 		return true;
 	}
 
-	static	bool	runApp(etd::string type, etd::string path, etd::string param, etd::string dir, int showtype = -1, int* lpErrCode = nullptr)
+	static	bool	runApp(etd::string type, FilePath path, etd::string param, etd::string dir, int showtype = -1, int* lpErrCode = nullptr)
 	{
 		PVOID OldValue = nullptr;
 		BOOL bDisableWow64 = FALSE;
 
 		path.trim();
+		
+		bool bfoundFile = false;
 
-		if (!path.is_full_path())
+		if (!path.is_absolute())
 		{
 			bDisableWow64 = Wow64DisableWow64FsRedirection(&OldValue);
 		}
-
+		else {
+			//从绝对路径判断文件.
+			bfoundFile = path.is_exists();
+		}
+		
 		//处理路径中的空格
-		if (type == "open" && param.empty() &&
+		if (!bfoundFile && type == "open" && param.empty() &&
 			(path.find(" ") != std::string::npos || path.find("　") != std::string::npos))
 		{
 			bool isYingHao = false;
@@ -396,7 +404,7 @@ public:
 
 		if (dir.empty())
 		{
-			if (path.is_full_path()) dir = path.to_file_dir();
+			if (path.is_absolute()) dir = path.to_file_dir();
 			else {
 				char szBuffer[1024] = { 0 };
 				GetEnvironmentVariableA("USERPROFILE", szBuffer, sizeof(szBuffer));

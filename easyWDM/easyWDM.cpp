@@ -267,7 +267,7 @@ bool easyWDM::initWDM()
 			box.ApiError("RegisterShellHookWindow");
 			return false;
 		}
-
+		
 		_tray.set_msg_handler(g_Shell_Wnd_Msg_ID, [&](WPARAM wParam, LPARAM lParam)
 			{
 				bool is_create = false;
