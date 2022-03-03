@@ -11,7 +11,7 @@
 
 using namespace easy;
 
-typedef struct _tagVMonitorInfo_t
+struct MONITOR_INFO
 {
 	HMONITOR hMonitor; //显示器句柄
 	TCHAR szDevice[32]; //显示器名
@@ -20,10 +20,12 @@ typedef struct _tagVMonitorInfo_t
 	RECT rcWork; //工作显示坐标
 	BOOL bPrimary; //主显示器？
 
-	_tagVMonitorInfo_t()
-	{		memset(this, 0, sizeof(*this));
+	MONITOR_INFO()
+	{
+		memset(this, 0, sizeof(*this));
 	}
-}VMONITORINFO, * LPVMONITORINFO;
+};
+typedef etd::map<HMONITOR,MONITOR_INFO> MONITOR_INFOS;
 
 class helper
 {
@@ -216,7 +218,7 @@ public:
 		if (hRes != S_OK) CloakedVal = 0;
 		return CloakedVal ? true : false;
 	}
-	
+
 	struct _WND_RC
 	{
 		HWND wnd = nullptr;
@@ -376,7 +378,7 @@ public:
 		BOOL bDisableWow64 = FALSE;
 
 		path.trim();
-		
+
 		bool bfoundFile = false;
 
 		if (!path.is_absolute())
@@ -387,7 +389,7 @@ public:
 			//从绝对路径判断文件.
 			bfoundFile = path.is_exists();
 		}
-		
+
 		//处理路径中的空格
 		if (!bfoundFile && type == "open" && param.empty() &&
 			(path.find(" ") != std::string::npos || path.find("　") != std::string::npos))
@@ -492,7 +494,7 @@ public:
 			return result > (HINSTANCE)32;
 		}*/
 
-	//窗口信息
+		//窗口信息
 	static std::string getWndClass(HWND hWnd)
 	{
 		std::string result;
@@ -637,7 +639,7 @@ public:
 	}
 
 	//枚举显示器
-	int enumMonitor(std::vector< VMONITORINFO> &infos)
+	static int enumMonitor(MONITOR_INFOS &infos)
 	{
 		//输出显示器信息
 		auto MonitorEnumProc = [](
@@ -647,8 +649,33 @@ public:
 			LPARAM dwData       // data passed from EnumDisplayMonitors
 			)
 		{
-			std::vector< VMONITORINFO>& infos = *((std::vector< VMONITORINFO>*)dwData);
+			MONITOR_INFOS& infos = *((MONITOR_INFOS*)dwData);
 
+			// GetMonitorInfo 获取显示器信息
+			MONITORINFOEX infoEx;
+			memset(&infoEx, 0, sizeof(infoEx));
+			infoEx.cbSize = sizeof(infoEx);
+			if (GetMonitorInfo(hMonitor, &infoEx))
+			{
+				//保存显示器信息
+
+
+				MONITOR_INFO info;
+
+				MONITOR_INFO* pInfo = &info;
+				pInfo->hMonitor = hMonitor;
+				if (lprcMonitor)
+				{
+					pInfo->rcVirtual = *lprcMonitor;
+				}
+				pInfo->rcMonitor = infoEx.rcMonitor;
+				pInfo->rcWork = infoEx.rcWork;
+				pInfo->bPrimary = infoEx.dwFlags == MONITORINFOF_PRIMARY;
+				_tcscpy_s(pInfo->szDevice, infoEx.szDevice);
+
+				infos[hMonitor] = info;
+			}
+			
 			return TRUE;
 		};
 

@@ -34,6 +34,7 @@ private:
 
 	HWND	m_hRawInputWnd = nullptr;
 
+	MONITOR_INFOS	m_monitors;
 
 	//开启 或 关闭 限制鼠标
 	bool	set_limit_mouse();

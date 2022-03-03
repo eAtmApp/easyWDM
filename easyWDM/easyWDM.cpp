@@ -76,9 +76,7 @@ bool easyWDM::initConfig()
 		process.exit("读取配置文件失败,如格式错乱,删除配置文件即可恢复默认!");
 		return false;
 	}
-
-
-
+	
 	return true;
 }
 
@@ -117,17 +115,10 @@ bool easyWDM::set_limit_mouse()
 
 bool easyWDM::initWDM()
 {
-	std::map<int, std::string> tesmap;
 
-	tesmap[3] = "abcdefg";
-
-	auto& str = tesmap[3];
-
-	auto& str2 = tesmap[4];
-	str2 = "abcdefg";
-
-	//helper::ShowDisktop();
-
+	//枚举显示器信息
+	VERIFY(helper::enumMonitor(m_monitors)>=1);
+	
 	if (!initConfig()) return false;
 
 	if (_config["hook_mouse"])
