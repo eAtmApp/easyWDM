@@ -11,6 +11,20 @@
 
 using namespace easy;
 
+typedef struct _tagVMonitorInfo_t
+{
+	HMONITOR hMonitor; //显示器句柄
+	TCHAR szDevice[32]; //显示器名
+	RECT rcVirtual; //虚拟显示屏坐标
+	RECT rcMonitor; //物理显示坐标
+	RECT rcWork; //工作显示坐标
+	BOOL bPrimary; //主显示器？
+
+	_tagVMonitorInfo_t()
+	{		memset(this, 0, sizeof(*this));
+	}
+}VMONITORINFO, * LPVMONITORINFO;
+
 class helper
 {
 public:
@@ -478,7 +492,7 @@ public:
 			return result > (HINSTANCE)32;
 		}*/
 
-		//窗口信息
+	//窗口信息
 	static std::string getWndClass(HWND hWnd)
 	{
 		std::string result;
@@ -620,5 +634,25 @@ public:
 		std::thread thread(thread_proc);
 		thread.detach();
 		return true;
+	}
+
+	//枚举显示器
+	int enumMonitor(std::vector< VMONITORINFO> &infos)
+	{
+		//输出显示器信息
+		auto MonitorEnumProc = [](
+			HMONITOR hMonitor,  // handle to display monitor
+			HDC hdcMonitor,     // handle to monitor-appropriate device context
+			LPRECT lprcMonitor, // pointer to monitor intersection rectangle
+			LPARAM dwData       // data passed from EnumDisplayMonitors
+			)
+		{
+			std::vector< VMONITORINFO>& infos = *((std::vector< VMONITORINFO>*)dwData);
+
+			return TRUE;
+		};
+
+		EnumDisplayMonitors(NULL, NULL, (MONITORENUMPROC)MonitorEnumProc, (LPARAM)&infos);
+		return infos.size();
 	}
 };

@@ -35,7 +35,7 @@ void easyWDM::UninstallHook()
 	if (_hookMouse)
 	{
 		UnhookWindowsHookEx(_hookMouse);
-		_hookKey = nullptr;
+		_hookMouse = nullptr;
 	}
 }
 
@@ -76,6 +76,8 @@ bool easyWDM::initConfig()
 		process.exit("读取配置文件失败,如格式错乱,删除配置文件即可恢复默认!");
 		return false;
 	}
+
+
 
 	return true;
 }
