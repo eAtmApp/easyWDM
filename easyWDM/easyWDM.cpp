@@ -7,6 +7,8 @@
 #include <wtsapi32.h>
 #pragma comment(lib, "Wtsapi32.lib")
 
+#include <easy/format_type.h>
+
 easyWDM::easyWDM(tray_icon& tray)
 	:_tray(tray)
 {
@@ -76,7 +78,7 @@ bool easyWDM::initConfig()
 		process.exit("读取配置文件失败,如格式错乱,删除配置文件即可恢复默认!");
 		return false;
 	}
-	
+
 	return true;
 }
 
@@ -93,6 +95,37 @@ bool easyWDM::SetHotkey(std::string hotkey, hotkey_handler&& handler)
 		_map_hotkey.erase(dwFlags);
 	}
 	return true;
+}
+
+HMONITOR easyWDM::getMonitor(POINT& pt)
+{
+	HMONITOR result = nullptr;
+	m_monitors.some([&](HMONITOR hMonitor,MONITOR_INFO& info)
+		{
+			auto& rct = info.rcMonitor;
+			if (pt.x>=rct.left && pt.x<rct.right
+				&& pt.y>=rct.top && pt.y<rct.bottom)
+			{
+				result = hMonitor;
+				return true;
+			}
+			return false;
+		});
+	return result;
+}
+
+void easyWDM::refreshMonitor()
+{
+	//枚举显示器信息
+	VERIFY(helper::enumMonitor(m_monitors) >= 1);
+	
+	m_monitors.forEach([](MONITOR_INFO & info)
+	{
+			auto &rct = info.rcMonitor;
+			//console.log("显示器: {:08X},{}*{} - {}*{}", (DWORD)info.hMonitor,rct.left,rct.top,rct.right,rct.bottom);
+			console.log("显示器:{:08X},{}", (DWORD)info.hMonitor, rct);
+	});
+
 }
 
 bool easyWDM::set_limit_mouse()
@@ -115,10 +148,8 @@ bool easyWDM::set_limit_mouse()
 
 bool easyWDM::initWDM()
 {
+	refreshMonitor();
 
-	//枚举显示器信息
-	VERIFY(helper::enumMonitor(m_monitors)>=1);
-	
 	if (!initConfig()) return false;
 
 	if (_config["hook_mouse"])
@@ -260,7 +291,7 @@ bool easyWDM::initWDM()
 			box.ApiError("RegisterShellHookWindow");
 			return false;
 		}
-		
+
 		_tray.set_msg_handler(g_Shell_Wnd_Msg_ID, [&](WPARAM wParam, LPARAM lParam)
 			{
 				bool is_create = false;

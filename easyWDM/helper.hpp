@@ -4,8 +4,9 @@
 #include <dwmapi.h>
 #include <combaseapi.h>
 #include <shldisp.h>
-
 #include <tlhelp32.h>
+#include <shellscalingapi.h>
+#pragma comment(lib, "Shcore.lib")
 
 #include <easy/File.h>
 
@@ -19,6 +20,9 @@ struct MONITOR_INFO
 	RECT rcMonitor; //物理显示坐标
 	RECT rcWork; //工作显示坐标
 	BOOL bPrimary; //主显示器？
+
+	int  mmX;		//物理尺寸宽度
+	int	 mmY;		//物理尺寸高度mm为单位
 
 	MONITOR_INFO()
 	{
@@ -442,15 +446,7 @@ public:
 		execInfo.hMonitor = getCurrentMonitor();
 
 		bool result = ShellExecuteExA(&execInfo);
-
-		/*
-				auto result = ShellExecuteA(nullptr,
-					type.empty() ? nullptr : type.data(),
-					path.data(),
-					param.empty() ? nullptr : param.data(),
-					dir.empty() ? nullptr : dir.data(),
-					SW_SHOWNORMAL);*/
-
+		
 		if (bDisableWow64) Wow64RevertWow64FsRedirection(OldValue);
 
 		if (lpErrCode)
@@ -494,7 +490,7 @@ public:
 			return result > (HINSTANCE)32;
 		}*/
 
-		//窗口信息
+	//窗口信息
 	static std::string getWndClass(HWND hWnd)
 	{
 		std::string result;
@@ -658,8 +654,6 @@ public:
 			if (GetMonitorInfo(hMonitor, &infoEx))
 			{
 				//保存显示器信息
-
-
 				MONITOR_INFO info;
 
 				MONITOR_INFO* pInfo = &info;
@@ -672,7 +666,20 @@ public:
 				pInfo->rcWork = infoEx.rcWork;
 				pInfo->bPrimary = infoEx.dwFlags == MONITORINFOF_PRIMARY;
 				_tcscpy_s(pInfo->szDevice, infoEx.szDevice);
+				
+				DEVMODEA devmode = { 0 };
 
+				HDC hdc = CreateDCA(pInfo->szDevice, NULL, NULL, NULL);		//得到整个屏幕的设备环境句柄
+				pInfo->mmX = GetDeviceCaps(hdc, HORZSIZE);
+				pInfo->mmY = GetDeviceCaps(hdc, VERTSIZE);
+
+				/*
+				#define MM_TO_INCH (double) 0.0393700788
+				double cz = sqrt(cx * cx + cy * cy) * MM_TO_INCH;
+				*/
+
+				DeleteDC(hdc);
+				
 				infos[hMonitor] = info;
 			}
 			

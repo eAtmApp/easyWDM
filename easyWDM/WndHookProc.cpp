@@ -43,8 +43,8 @@ void easyWDM::WndHookProc(HWND hWnd, bool isCreate)
 	
 	if (isCreate)
 	{
-		console.log("窗口创建:{:08X} - {} -　{} - {}", (DWORD)hWnd, txtName, className, psName);
 	}
+	console.log("{}:{:08X} - {} -　{} - {}", isCreate?"创建":"显示",(DWORD)hWnd, txtName, className, psName);
 
 	//处理需要隐藏的窗口
 	if (is_match("hook_windows_hide", psName, txtName, className))

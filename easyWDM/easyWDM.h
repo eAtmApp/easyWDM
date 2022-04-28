@@ -28,9 +28,13 @@ public:
 
 	bool	init_hid();
 
-	void	initRawInput();
 private:
-	static LRESULT CALLBACK RawInputProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+	
+	//坐标得到显示器句柄
+	HMONITOR	getMonitor(POINT &pt);
+
+	//输出显示器信息
+	void	refreshMonitor();
 
 	HWND	m_hRawInputWnd = nullptr;
 

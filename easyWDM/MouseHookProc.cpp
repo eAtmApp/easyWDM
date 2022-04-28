@@ -122,6 +122,22 @@ bool easyWDM::MouseMessage(UINT button, POINT pt)
 			s_is_set_limit_rect = false;
 		}
 
+		HMONITOR hCur = getMonitor(pt);
+		if (hCur!= s_old_hMonitor)
+		{
+			if (s_old_hMonitor != nullptr)
+			{
+				console.debug(" Û±ÍøÁ”Úœ‘ æ∆˜¡À");
+			}
+			s_old_hMonitor = hCur;
+		}
+		
+		if (button!=512)
+		{
+			console.log("{},{}", button, pt);
+		}
+
+		s_old_pt = pt;
 	}
 	else {
 		if (!s_is_set_limit_rect)

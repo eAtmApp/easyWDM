@@ -31,7 +31,8 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
 	worker.startWork();
 
 	console.set_logfile();
-
+	console.log("启动");
+	
 	process.set_current_dir();
 
 	process.set_app_name(app_name);
@@ -54,12 +55,13 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
 				tray.SetCheck(is_enable);
 			}
 		});
-/*
-	tray.AddSeparator();
-	tray.AddMenu("重新加载配置", [&]()
-		{
 
-		});*/
+	tray.AddSeparator();
+	tray.AddMenu("重新运行(&R)", [&]()
+		{
+			tray.DeleteTray();
+
+		});
 
 	tray.AddSeparator();
 	tray.AddMenu("退出(&X)", [&]()
