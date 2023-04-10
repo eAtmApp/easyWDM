@@ -8,4 +8,6 @@
 
 #include <cstdint>
 
+#include <easylib/easy.h>
+
 #endif //PCH_H

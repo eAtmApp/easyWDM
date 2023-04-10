@@ -7,8 +7,6 @@
 #include <wtsapi32.h>
 #pragma comment(lib, "Wtsapi32.lib")
 
-#include <easy/format_type.h>
-
 easyWDM::easyWDM(tray_icon& tray)
 	:_tray(tray)
 {
@@ -100,11 +98,11 @@ bool easyWDM::SetHotkey(std::string hotkey, hotkey_handler&& handler)
 HMONITOR easyWDM::getMonitor(POINT& pt)
 {
 	HMONITOR result = nullptr;
-	m_monitors.some([&](HMONITOR hMonitor,MONITOR_INFO& info)
+	m_monitors.some([&](HMONITOR hMonitor, MONITOR_INFO& info)
 		{
 			auto& rct = info.rcMonitor;
-			if (pt.x>=rct.left && pt.x<rct.right
-				&& pt.y>=rct.top && pt.y<rct.bottom)
+			if (pt.x >= rct.left && pt.x < rct.right
+				&& pt.y >= rct.top && pt.y < rct.bottom)
 			{
 				result = hMonitor;
 				return true;
@@ -118,13 +116,13 @@ void easyWDM::refreshMonitor()
 {
 	//枚举显示器信息
 	VERIFY(helper::enumMonitor(m_monitors) >= 1);
-	
-	m_monitors.forEach([](MONITOR_INFO & info)
-	{
-			auto &rct = info.rcMonitor;
+
+	m_monitors.forEach([](MONITOR_INFO& info)
+		{
+			auto& rct = info.rcMonitor;
 			//console.log("显示器: {:08X},{}*{} - {}*{}", (DWORD)info.hMonitor,rct.left,rct.top,rct.right,rct.bottom);
 			console.log("显示器:{:08X},{}", (DWORD)info.hMonitor, rct);
-	});
+		});
 
 }
 
@@ -151,7 +149,7 @@ bool easyWDM::initWDM()
 	refreshMonitor();
 
 	if (!initConfig()) return false;
-
+	 
 	if (_config["hook_mouse"])
 	{
 		SetHotkey("ctrl", std::bind(&easyWDM::set_limit_mouse, this));
@@ -277,7 +275,7 @@ bool easyWDM::initWDM()
 	}
 
 	//窗口勾子
-	if (_config["hook_windows"] || _config["hook_key"])
+	if (_config["hook_windows"])// || _config["hook_key"])
 	{
 		g_Shell_Wnd_Msg_ID = RegisterWindowMessageA("SHELLHOOK");
 		if (g_Shell_Wnd_Msg_ID == 0)
@@ -305,12 +303,6 @@ bool easyWDM::initWDM()
 					bool isCreate = wParam == HSHELL_WINDOWCREATED;
 					std::thread thread_(&easyWDM::WndHookProc, this, hWnd, isCreate);
 					thread_.detach();
-
-					/*
-					auto txtName = helper::getWndTitle(hWnd);
-					uto className = helper::getWndClass(hWnd);
-					console.log("创建窗口({:08X}):{} - {}", (DWORD)hWnd, className, txtName);
-					*/
 				}
 			});
 	}
@@ -402,5 +394,13 @@ bool easyWDM::initWDM()
 	//std::thread rawinput(&easyWDM::initRawInput, this);
 	//rawinput.detach();
 
+	_BluetoothMac = _config["Bluetooth"].asString();
+	if (!_BluetoothMac.empty())
+	{
+		worker.setInterval([this]()
+			{
+				bluetooth_check();
+			}, 1000);
+	}
 	return true;
 }

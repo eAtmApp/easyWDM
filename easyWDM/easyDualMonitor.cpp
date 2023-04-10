@@ -3,15 +3,10 @@
 #include "framework.h"
 #include "easyDualMonitor.h"
 
-#include "tray_icon.h"
-
-#include <easy/easy.h>
 using namespace easy;
 
 #include "easyWDM.h"
-//
-#pragma comment(lib, EASY_LIB_NAME("easylib"))
-//
+
 #define MID_DESKTOP 1
 #define MID_RUN 2
 #define MID_MOVE_WND 3
@@ -28,12 +23,12 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
 {
 	helper::m_runDlgIcon = LoadIcon(::GetModuleHandleA(nullptr), MAKEINTRESOURCEA(IDI_TRAYICONDEMO));
 	
-	worker.startWork();
+	worker.startWork(1);
 
 	console.set_logfile();
 	console.log("启动");
 	
-	process.set_current_dir();
+	process.set_current_dir("");
 
 	process.set_app_name(app_name);
 	
@@ -54,14 +49,17 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
 			{
 				tray.SetCheck(is_enable);
 			}
+			//tray.show_info("test");
 		});
 
 	tray.AddSeparator();
+
+/*
 	tray.AddMenu("重新运行(&R)", [&]()
 		{
 			tray.DeleteTray();
 
-		});
+		});*/
 
 	tray.AddSeparator();
 	tray.AddMenu("退出(&X)", [&]()

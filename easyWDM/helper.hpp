@@ -1,5 +1,4 @@
 
-#include <easy/easy.h>
 #include <windows.h>
 #include <dwmapi.h>
 #include <combaseapi.h>
@@ -8,7 +7,7 @@
 #include <shellscalingapi.h>
 #pragma comment(lib, "Shcore.lib")
 
-#include <easy/File.h>
+#include <easylib/format_type.h>
 
 using namespace easy;
 
@@ -173,7 +172,7 @@ public:
 					return 0;
 				};
 			};
-			prevWndProc = (WNDPROC)SetWindowLongPtr(hSBWnd, GWL_WNDPROC, (LONG_PTR)&_tagTemp::WndProcedure);
+			prevWndProc = (WNDPROC)SetWindowLongPtr(hSBWnd, GWLP_WNDPROC, (LONG_PTR)&_tagTemp::WndProcedure);
 
 			activeWnd(hSBWnd);
 			s_RunDlg(hSBWnd, nullptr, nullptr, nullptr, nullptr, 0x4 | 0x1);
@@ -335,7 +334,7 @@ public:
 				if (rc.hOwerWnd) ShowOwnedPopups(rc.hOwerWnd, false);
 				else			 ::ShowWindow(rc.wnd, SW_MINIMIZE);
 
-				console.log("вўВи:{:08X}-{}-{}", (DWORD)rc.wnd, rc.title, rc.cls);
+				console.log("вўВи:{:x}-{}-{}", (uint64_t)rc.wnd, rc.title, rc.cls);
 				listWnd.emplace_back(std::move(rc));
 			}
 
@@ -607,7 +606,7 @@ public:
 		auto thread_proc = []() {
 			HWND hStartWnd = GetCurrentMonitorStartMenuWnd();
 			if (!hStartWnd) return false;
-
+			 
 			HWND hWnd = GetParent(hStartWnd);
 			HWND hForeWnd;
 			DWORD dwForeID;
@@ -621,10 +620,10 @@ public:
 			SetWindowPos(hWnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
 			SetForegroundWindow(hWnd);
 			AttachThreadInput(dwCurID, dwForeID, FALSE);
-
-			PostMessageA(hStartWnd, WM_MOUSEMOVE, 0, MAKELONG(30, 30));
-			PostMessageA(hStartWnd, WM_LBUTTONDOWN, 0, MAKELONG(30, 30));
-			PostMessageA(hStartWnd, WM_LBUTTONUP, 0, MAKELONG(30, 30));
+			
+			PostMessageA(hStartWnd, WM_MOUSEMOVE, 0, MAKELONG(5, 5));
+			PostMessageA(hStartWnd, WM_LBUTTONDOWN, MK_LBUTTON, MAKELONG(5, 5));
+			PostMessageA(hStartWnd, WM_LBUTTONUP, 0, MAKELONG(5, 5));
 
 			return false;
 		};
@@ -687,6 +686,6 @@ public:
 		};
 
 		EnumDisplayMonitors(NULL, NULL, (MONITORENUMPROC)MonitorEnumProc, (LPARAM)&infos);
-		return infos.size();
+		return (int)infos.size();
 	}
 };

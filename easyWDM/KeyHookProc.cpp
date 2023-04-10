@@ -26,6 +26,11 @@ bool easyWDM::KeyMessage(UINT uType, KBDLLHOOKSTRUCT* pHook)
 	
 	UCHAR uKey = (UCHAR)pHook->vkCode;
 
+	if (uKey == VK_LWIN)
+	{
+		console.log("win key");
+	}
+
 	bool is_handler = false;
 
 	//处理系统key,将他设置为普通key方便处理
@@ -42,7 +47,7 @@ bool easyWDM::KeyMessage(UINT uType, KBDLLHOOKSTRUCT* pHook)
 			is_sys_key = true;
 		}
 	}
-
+	
 	//记录各个组合键真实状态-省去中间取值环节
 	auto down_count = key_status.set_status(uType, uKey);
 
@@ -100,6 +105,7 @@ bool easyWDM::KeyMessage(UINT uType, KBDLLHOOKSTRUCT* pHook)
 		}
 	}
 
+	//单按键热键
 	struct _hotkey_single
 	{
 		_hotkey_single(UINT key, UINT flags)
@@ -146,6 +152,22 @@ bool easyWDM::KeyMessage(UINT uType, KBDLLHOOKSTRUCT* pHook)
 	else if (_single_alt.is_event(uType, uKey)) HandlerHotkey(0, _single_alt.listenFlags);
 	else if (_single_shift.is_event(uType, uKey)) HandlerHotkey(0, _single_shift.listenFlags);
 	else if (_single_ctrl.is_event(uType, uKey)) HandlerHotkey(0, _single_ctrl.listenFlags);
+
+	//处理系统按键的双击事件
+	{
+		//最后一次系统按键与弹起时间
+		static UCHAR s_last_key = 0;
+		static uint64_t s_last_up_tick = 0;
+		if (uKey == VK_LWIN
+			|| uKey == VK_RWIN)
+		{
+		}
+		if (s_last_key != uKey)
+		{
+			s_last_key = uKey;
+			s_last_up_tick = ::GetTickCount64();
+		}
+	}
 
 	return is_handler;
 }

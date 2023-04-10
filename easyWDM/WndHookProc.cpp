@@ -4,22 +4,47 @@
 //窗口是否匹配
 bool easyWDM::is_match(eString configName, eStringV psName, eStringV title, eStringV cls)
 {
+	EASY_STATIC_LOCK();
+
 	if (psName.empty()) return false;
 
 	//hook_windows_filter
+	//hook_windows_hide
 
-	if (_config[configName].isArray())
+	if (_config[configName].isArray() || _config[configName].isObject())
 	{
-		bool _match = _config[configName].some([&](jsoncpp& item)
+		bool _match = _config[configName].someArray([&](jsoncpp& item)
 			{
-				if (item["ps"].isString())
+				eStringV _ps = item["ps"].asStringView();
+				eStringV _title = item["title"].asStringView();
+				eStringV _class = item["class"].asStringView();
+
+				if (_ps.empty() && _title.empty() && _class.empty())
 				{
-					if (psName.compare_icase(item["ps"].asString()))
-					{
-						return true;
-					}
+					return false;
 				}
-				return false;
+
+				if (!_ps.empty())
+				{
+					int x = 0;
+				}
+
+				if (!_ps.empty() && !psName.is_match(_ps,true))
+				{
+					return false;
+				}
+
+				if (!_title.empty() && !title.is_match(_title, true))
+				{
+					return false;
+				}
+
+				if (!_class.empty() && !cls.is_match(_class, true))
+				{
+					return false;
+				}
+				
+				return true;
 			});
 
 		return _match;
@@ -40,28 +65,27 @@ void easyWDM::WndHookProc(HWND hWnd, bool isCreate)
 	auto txtName = helper::getWndTitle(hWnd);
 	auto className = helper::getWndClass(hWnd);
 	eString psName = helper::getProcessName(hWnd);
-	
+
 	if (isCreate)
 	{
 	}
-	console.log("{}:{:08X} - {} -　{} - {}", isCreate?"创建":"显示",(DWORD)hWnd, txtName, className, psName);
+	console.log("{}:{:08X} - {} -　{} - {}", isCreate ? "创建" : "显示", (DWORD)hWnd, txtName, className, psName);
 
 	//处理需要隐藏的窗口
-	if (is_match("hook_windows_hide", psName, txtName, className))
+	if (is_match("hide_windows", psName, txtName, className))
 	{
 		console.log("隐藏窗口:{:08X} - {} -　{} - {}", (DWORD)hWnd, txtName, className, psName);
 		::ShowWindow(hWnd, SW_HIDE);
 		return;
 	}
 
-	//处理需要排队的窗口
-	if (is_match("hook_windows_filter", psName, txtName, className))
+	//处理需要排除的窗口
+	if (is_match("filter_windows", psName, txtName, className))
 	{
+		console.log("排除窗口:{:08X} - {} -　{} - {}", (DWORD)hWnd, txtName, className, psName);
 		return;
 	}
 	
-	//console.log("激活窗口:{} - {}", className, txtName);
-
 	//只转移创建后5秒内显示的窗口
 	constexpr auto MAX_WAIT_TIME = 5;
 

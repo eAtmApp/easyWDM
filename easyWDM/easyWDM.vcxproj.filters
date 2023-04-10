@@ -30,9 +30,6 @@
     <ClInclude Include="Resource.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="tray_icon.h">
-      <Filter>tray_icon</Filter>
-    </ClInclude>
     <ClInclude Include="easyDualMonitor.h">
       <Filter>源文件</Filter>
     </ClInclude>
@@ -49,9 +46,6 @@
   <ItemGroup>
     <ClCompile Include="easyDualMonitor.cpp">
       <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="tray_icon.cpp">
-      <Filter>tray_icon</Filter>
     </ClCompile>
     <ClCompile Include="easyWDM.cpp">
       <Filter>easyWDM</Filter>
@@ -72,6 +66,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="logi.cpp">
+      <Filter>easyWDM</Filter>
+    </ClCompile>
+    <ClCompile Include="bluetooth_check.cpp">
       <Filter>easyWDM</Filter>
     </ClCompile>
   </ItemGroup>

@@ -1,7 +1,5 @@
 #pragma once
 #include <windows.h>
-#include "tray_icon.h"
-#include <easy/easy.h>
 
 #include "helper.hpp"
 
@@ -153,7 +151,7 @@ private:
 					else if (keystr[0] == 'F' && (keystr.size() == 2 || keystr.size() == 3))
 					{
 						etd::string estr(keystr.data() + 1, keystr.size() - 1);
-						auto val = estr.to_i();
+						auto val = estr.to_int32();
 						if (val >= 1 && val <= 24)
 						{
 							key = val + VK_F1 - 1;
@@ -203,6 +201,8 @@ private:
 	bool	HandlerHotkey(UCHAR ukey, DWORD hotkey_flags);
 
 	std::unordered_map<DWORD, hotkey_handler> _map_hotkey;
+
+	void	bluetooth_check();
 private:
 
 	inline static _KEYS_STATUS key_status;
@@ -217,4 +217,6 @@ private:
 	tray_icon& _tray;
 
 	jsoncpp	_config;
+
+	eString _BluetoothMac;
 };
