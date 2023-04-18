@@ -389,6 +389,20 @@ bool easyWDM::initWDM()
 		console.error("WTSRegisterSessionNotification失败,{}", ::GetLastError());
 	}
 
+	//系统设置变化时触发此消息
+	_tray.set_msg_handler(WM_SETTINGCHANGE, [&](WPARAM wParam, LPARAM lParam)
+		{
+			if (lParam != NULL)
+			{
+				eString str((char*)lParam);
+				if (str.compare_icase("Environment"))
+				{
+					console.log("刷新进程环境变量");
+					process.reload_env();
+				}
+			}
+		});
+
 	//init_hid();
 
 	//std::thread rawinput(&easyWDM::initRawInput, this);
