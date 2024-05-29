@@ -61,7 +61,7 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
 
 			});*/
 
-	tray.AddSeparator();
+	//tray.AddSeparator();
 	tray.AddMenu("退出(&X)", [&]()
 		{
 			tray.close();
