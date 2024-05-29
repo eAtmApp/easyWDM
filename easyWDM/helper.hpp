@@ -1,11 +1,19 @@
 
 #include <windows.h>
+
+
+#include <oleacc.h>
+#pragma comment(lib, "Oleacc.lib")
+
 #include <dwmapi.h>
 #include <combaseapi.h>
 #include <shldisp.h>
 #include <tlhelp32.h>
 #include <shellscalingapi.h>
 #pragma comment(lib, "Shcore.lib")
+#include <iostream>
+
+#include <UIAutomation.h>
 
 #include <easylib/format_type.h>
 
@@ -28,13 +36,42 @@ struct MONITOR_INFO
 		memset(this, 0, sizeof(*this));
 	}
 };
-typedef etd::map<HMONITOR,MONITOR_INFO> MONITOR_INFOS;
+typedef etd::map<HMONITOR, MONITOR_INFO> MONITOR_INFOS;
 
 class helper
 {
 public:
 
 	inline static	HICON	m_runDlgIcon = nullptr;
+
+	/*
+		eString GetProcessCommandLine(DWORD processId)
+		{
+			eString commandLine;
+			HANDLE processHandle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, processId);
+			if (processHandle == NULL)
+			{
+				return commandLine;
+			}
+
+			DWORD bufferSize = 1024;
+			LPWSTR buffer = new WCHAR[bufferSize];
+
+			if (GetCommandLineW(processHandle, buffer, bufferSize))
+			{
+				commandLine.push_back(std::string(buffer, bufferSize));
+			}
+			else
+			{
+				std::cerr << "Failed to get command line for process with ID " << processId << std::endl;
+			}
+
+			delete[] buffer;
+
+			CloseHandle(processHandle);
+
+			return commandLine;
+		}*/
 
 	static eString getProcessName(DWORD dwProcessId)
 	{
@@ -60,10 +97,16 @@ public:
 		return result;
 	}
 
-	static eString getProcessName(HWND hWnd)
+	static DWORD	getProcessId(HWND hWnd)
 	{
 		DWORD pid = 0;
 		GetWindowThreadProcessId(hWnd, &pid);
+		return pid;
+	}
+
+	static eString getProcessName(HWND hWnd)
+	{
+		auto pid = getProcessId(hWnd);
 		if (pid) return getProcessName(pid);
 		return "";
 	}
@@ -262,55 +305,55 @@ public:
 		if (!hDesktop || !hMonitor) return false;
 
 		auto EnumMonitorWnd = [&](HWND hDesktop, HMONITOR hMonitor)
-		{
-			std::vector<_WND_RC> vec;
-
-			HWND hWndCCC = hDesktop;
-
-			while (hWndCCC)
 			{
-				hWndCCC = GetNextWindow(hWndCCC, GW_HWNDPREV);
-				if (!::IsWindowVisible(hWndCCC) || IsIconic(hWndCCC)
-					|| IsInvisibleWin10BackgroundAppWindow(hWndCCC))
+				std::vector<_WND_RC> vec;
+
+				HWND hWndCCC = hDesktop;
+
+				while (hWndCCC)
 				{
-					continue;
-				}
+					hWndCCC = GetNextWindow(hWndCCC, GW_HWNDPREV);
+					if (!::IsWindowVisible(hWndCCC) || IsIconic(hWndCCC)
+						|| IsInvisibleWin10BackgroundAppWindow(hWndCCC))
+					{
+						continue;
+					}
 
-				auto className = getWndClass(hWndCCC);
-				auto titleName = getWndTitle(hWndCCC);
+					auto className = getWndClass(hWndCCC);
+					auto titleName = getWndTitle(hWndCCC);
 
-				if (className == "Shell_SecondaryTrayWnd"
-					|| className == "Shell_TrayWnd"
-					|| className == "WorkerW"
-					|| className == "SysShadow"
-					|| className == "TaskListThumbnailWnd")
-				{
-					continue;
-				}
+					if (className == "Shell_SecondaryTrayWnd"
+						|| className == "Shell_TrayWnd"
+						|| className == "WorkerW"
+						|| className == "SysShadow"
+						|| className == "TaskListThumbnailWnd")
+					{
+						continue;
+					}
 
-				//调试时不隐藏
+					//调试时不隐藏
 #ifdef _DEBUG
-				if (titleName.find("Microsoft Visual Studio(管理员)") != std::string::npos
-					&& titleName.find("(正在") != std::string::npos)
-				{
-					//continue;
-				}
-				//if (className == "HwndWrapper[DefaultDomain;;4da6d4be-d0ca-41a1-b9a9-bf651e51960c]") continue;
+					if (titleName.find("Microsoft Visual Studio(管理员)") != std::string::npos
+						&& titleName.find("(正在") != std::string::npos)
+					{
+						//continue;
+					}
+					//if (className == "HwndWrapper[DefaultDomain;;4da6d4be-d0ca-41a1-b9a9-bf651e51960c]") continue;
 #endif // _DEBUG
 
 	//最后判断这个窗口是否在这个显示器中
-				RECT rct = { 0 };
-				if (!::GetWindowRect(hWndCCC, &rct)) continue;
+					RECT rct = { 0 };
+					if (!::GetWindowRect(hWndCCC, &rct)) continue;
 
-				//全是0的窗口不显示
-				if (rct.bottom - rct.top <= 1 || rct.right - rct.left <= 1) continue;
+					//全是0的窗口不显示
+					if (rct.bottom - rct.top <= 1 || rct.right - rct.left <= 1) continue;
 
-				if (MonitorFromRect(&rct, MONITOR_DEFAULTTONEAREST) != hMonitor) continue;
+					if (MonitorFromRect(&rct, MONITOR_DEFAULTTONEAREST) != hMonitor) continue;
 
-				vec.push_back({ hWndCCC,titleName,className,::GetWindow(hWndCCC, GW_OWNER) });
-			}
-			return vec;
-		};
+					vec.push_back({ hWndCCC,titleName,className,::GetWindow(hWndCCC, GW_OWNER) });
+				}
+				return vec;
+			};
 
 		auto vecCur = EnumMonitorWnd(hDesktop, hMonitor);
 
@@ -445,7 +488,7 @@ public:
 		execInfo.hMonitor = getCurrentMonitor();
 
 		bool result = ShellExecuteExA(&execInfo);
-		
+
 		if (bDisableWow64) Wow64RevertWow64FsRedirection(OldValue);
 
 		if (lpErrCode)
@@ -489,7 +532,7 @@ public:
 			return result > (HINSTANCE)32;
 		}*/
 
-	//窗口信息
+		//窗口信息
 	static std::string getWndClass(HWND hWnd)
 	{
 		std::string result;
@@ -561,22 +604,22 @@ public:
 	//当前监视器开始菜单按钮句柄
 	static HWND		GetCurrentMonitorStartMenuWnd()
 	{
-		HWND hWnd = nullptr;
+		HWND hResult = nullptr;
 
 		//查找所有开始菜单按钮
 		auto _findStart = [](std::vector<HWND>& vec, const char* clsName)
-		{
-			HWND hLastWnd = nullptr;
-			do
 			{
-				hLastWnd = FindWindowExA(nullptr, hLastWnd, clsName, nullptr);
-				if (hLastWnd)
+				HWND hLastWnd = nullptr;
+				do
 				{
-					HWND hWnd = ::FindWindowExA(hLastWnd, nullptr, "Start", "开始");
-					if (hWnd) vec.push_back(hWnd);
-				}
-			} while (hLastWnd);
-		};
+					hLastWnd = FindWindowExA(nullptr, hLastWnd, clsName, nullptr);
+					if (hLastWnd)
+					{
+						HWND hWnd = ::FindWindowExA(hLastWnd, nullptr, "Start", "开始");
+						if (hWnd) vec.push_back(hWnd);
+					}
+				} while (hLastWnd);
+			};
 
 		//Shell_TrayWnd,Shell_SecondaryTrayWnd;
 		//枚举所有开始按钮
@@ -591,42 +634,80 @@ public:
 		{
 			if (MonitorFromWindow(wnd, MONITOR_DEFAULTTONEAREST) == hMon)
 			{
-				hWnd = wnd;
+				hResult = wnd;
 				break;
 			}
 		}
 
-		return hWnd;
+		return hResult;
+	}
+	
+	static bool UIAutoInvoke(HWND hwnd)
+	{
+		IUIAutomation* sp_utomation = nullptr;
+		IUIAutomationElement* sp_hwnd_element = nullptr;
+		IUIAutomationInvokePattern* pToggle = nullptr;
+
+		HRESULT hr = S_FALSE;
+
+		bool result = false;
+
+		do
+		{
+			hr = CoCreateInstance(CLSID_CUIAutomation, NULL, CLSCTX_INPROC_SERVER, IID_IUIAutomation, reinterpret_cast<void**>(&sp_utomation));
+			if (FAILED(hr) || sp_utomation == nullptr) break;
+
+			hr = sp_utomation->ElementFromHandle(hwnd, &sp_hwnd_element);
+			if (FAILED(hr) || sp_hwnd_element == nullptr) break;
+
+			hr = sp_hwnd_element->GetCurrentPattern(UIA_InvokePatternId, reinterpret_cast<IUnknown**>(&pToggle));
+			if (FAILED(hr) || pToggle == nullptr) break;
+
+			result = pToggle->Invoke() == S_OK;
+
+		} while (false);
+		console.log("UIAuto Invoke:{}", result);
+
+		if (pToggle) pToggle->Release();
+		if (sp_hwnd_element) sp_hwnd_element->Release();
+		if (sp_utomation) sp_utomation->Release();
+
+		return result;
 	}
 
 	//显示开始菜单
 	static bool		show_StartMenu()
 	{
 
-		auto thread_proc = []() {
-			HWND hStartWnd = GetCurrentMonitorStartMenuWnd();
-			if (!hStartWnd) return false;
-			 
-			HWND hWnd = GetParent(hStartWnd);
-			HWND hForeWnd;
-			DWORD dwForeID;
-			DWORD dwCurID;
-			hForeWnd = GetForegroundWindow();
-			dwCurID = GetCurrentThreadId();
-			dwForeID = GetWindowThreadProcessId(hForeWnd, nullptr);
-			AttachThreadInput(dwCurID, dwForeID, TRUE);
-			ShowWindow(hWnd, SW_SHOWNORMAL);
-			SetWindowPos(hWnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
-			SetWindowPos(hWnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
-			SetForegroundWindow(hWnd);
-			AttachThreadInput(dwCurID, dwForeID, FALSE);
-			
-			PostMessageA(hStartWnd, WM_MOUSEMOVE, 0, MAKELONG(5, 5));
-			PostMessageA(hStartWnd, WM_LBUTTONDOWN, MK_LBUTTON, MAKELONG(5, 5));
-			PostMessageA(hStartWnd, WM_LBUTTONUP, 0, MAKELONG(5, 5));
+		auto thread_proc = []()
+			{
+				HWND hStartWnd = GetCurrentMonitorStartMenuWnd();
+				if (!hStartWnd) return false;
 
-			return false;
-		};
+				//console.log("StartMenu: {08X}", (int)hStartWnd);
+
+				HWND hWnd = GetParent(hStartWnd);
+				HWND hForeWnd;
+				DWORD dwForeID;
+				DWORD dwCurID;
+				hForeWnd = GetForegroundWindow();
+				dwCurID = GetCurrentThreadId();
+				dwForeID = GetWindowThreadProcessId(hForeWnd, nullptr);
+				AttachThreadInput(dwCurID, dwForeID, TRUE);
+				ShowWindow(hWnd, SW_SHOWNORMAL);
+				SetWindowPos(hWnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
+				SetWindowPos(hWnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
+				SetForegroundWindow(hWnd);
+				AttachThreadInput(dwCurID, dwForeID, FALSE);
+
+				return UIAutoInvoke(hStartWnd);
+
+				PostMessageA(hStartWnd, WM_MOUSEMOVE, 0, MAKELONG(15, 15));
+				PostMessageA(hStartWnd, WM_LBUTTONDOWN, MK_LBUTTON, MAKELONG(15, 15));
+				PostMessageA(hStartWnd, WM_LBUTTONUP, 0, MAKELONG(15, 15));
+
+				return false;
+			};
 
 		std::thread thread(thread_proc);
 		thread.detach();
@@ -634,7 +715,7 @@ public:
 	}
 
 	//枚举显示器
-	static int enumMonitor(MONITOR_INFOS &infos)
+	static int enumMonitor(MONITOR_INFOS& infos)
 	{
 		//输出显示器信息
 		auto MonitorEnumProc = [](
@@ -643,47 +724,47 @@ public:
 			LPRECT lprcMonitor, // pointer to monitor intersection rectangle
 			LPARAM dwData       // data passed from EnumDisplayMonitors
 			)
-		{
-			MONITOR_INFOS& infos = *((MONITOR_INFOS*)dwData);
-
-			// GetMonitorInfo 获取显示器信息
-			MONITORINFOEX infoEx;
-			memset(&infoEx, 0, sizeof(infoEx));
-			infoEx.cbSize = sizeof(infoEx);
-			if (GetMonitorInfo(hMonitor, &infoEx))
 			{
-				//保存显示器信息
-				MONITOR_INFO info;
+				MONITOR_INFOS& infos = *((MONITOR_INFOS*)dwData);
 
-				MONITOR_INFO* pInfo = &info;
-				pInfo->hMonitor = hMonitor;
-				if (lprcMonitor)
+				// GetMonitorInfo 获取显示器信息
+				MONITORINFOEX infoEx;
+				memset(&infoEx, 0, sizeof(infoEx));
+				infoEx.cbSize = sizeof(infoEx);
+				if (GetMonitorInfo(hMonitor, &infoEx))
 				{
-					pInfo->rcVirtual = *lprcMonitor;
+					//保存显示器信息
+					MONITOR_INFO info;
+
+					MONITOR_INFO* pInfo = &info;
+					pInfo->hMonitor = hMonitor;
+					if (lprcMonitor)
+					{
+						pInfo->rcVirtual = *lprcMonitor;
+					}
+					pInfo->rcMonitor = infoEx.rcMonitor;
+					pInfo->rcWork = infoEx.rcWork;
+					pInfo->bPrimary = infoEx.dwFlags == MONITORINFOF_PRIMARY;
+					_tcscpy_s(pInfo->szDevice, infoEx.szDevice);
+
+					DEVMODEA devmode = { 0 };
+
+					HDC hdc = CreateDCA(pInfo->szDevice, NULL, NULL, NULL);		//得到整个屏幕的设备环境句柄
+					pInfo->mmX = GetDeviceCaps(hdc, HORZSIZE);
+					pInfo->mmY = GetDeviceCaps(hdc, VERTSIZE);
+
+					/*
+					#define MM_TO_INCH (double) 0.0393700788
+					double cz = sqrt(cx * cx + cy * cy) * MM_TO_INCH;
+					*/
+
+					DeleteDC(hdc);
+
+					infos[hMonitor] = info;
 				}
-				pInfo->rcMonitor = infoEx.rcMonitor;
-				pInfo->rcWork = infoEx.rcWork;
-				pInfo->bPrimary = infoEx.dwFlags == MONITORINFOF_PRIMARY;
-				_tcscpy_s(pInfo->szDevice, infoEx.szDevice);
-				
-				DEVMODEA devmode = { 0 };
 
-				HDC hdc = CreateDCA(pInfo->szDevice, NULL, NULL, NULL);		//得到整个屏幕的设备环境句柄
-				pInfo->mmX = GetDeviceCaps(hdc, HORZSIZE);
-				pInfo->mmY = GetDeviceCaps(hdc, VERTSIZE);
-
-				/*
-				#define MM_TO_INCH (double) 0.0393700788
-				double cz = sqrt(cx * cx + cy * cy) * MM_TO_INCH;
-				*/
-
-				DeleteDC(hdc);
-				
-				infos[hMonitor] = info;
-			}
-			
-			return TRUE;
-		};
+				return TRUE;
+			};
 
 		EnumDisplayMonitors(NULL, NULL, (MONITORENUMPROC)MonitorEnumProc, (LPARAM)&infos);
 		return (int)infos.size();

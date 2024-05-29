@@ -7,6 +7,8 @@
 #include <wtsapi32.h>
 #pragma comment(lib, "Wtsapi32.lib")
 
+
+
 easyWDM::easyWDM(tray_icon& tray)
 	:_tray(tray)
 {
@@ -146,10 +148,19 @@ bool easyWDM::set_limit_mouse()
 
 bool easyWDM::initWDM()
 {
+	//CoInitialize(NULL);
+	CoInitializeEx(NULL, COINIT_MULTITHREADED);
+
+	auto wnd = helper::GetCurrentMonitorStartMenuWnd();
+
+	//helper::UIAutoInvoke(wnd);
+
+	::Sleep(1000);
+
 	refreshMonitor();
 
 	if (!initConfig()) return false;
-	 
+
 	if (_config["hook_mouse"])
 	{
 		SetHotkey("ctrl", std::bind(&easyWDM::set_limit_mouse, this));
@@ -237,9 +248,9 @@ bool easyWDM::initWDM()
 		});
 
 	//内置功能
-	SetHotkey("win+d", helper::ShowDisktop);
-	SetHotkey("win+r", std::bind(helper::ShowRunDlg, false));
-	SetHotkey("win", helper::show_StartMenu);
+	//SetHotkey("win+d", helper::ShowDisktop);
+	//SetHotkey("win+r", std::bind(helper::ShowRunDlg, false));
+	//SetHotkey("win", helper::show_StartMenu);
 
 	//键盘钩子
 	if (_config["hook_key"])
@@ -354,8 +365,8 @@ bool easyWDM::initWDM()
 
 						auto hid = raw->data.hid;
 
-						console.log("设备类型:{}-{:08X} 数据:{}", raw->header.dwType, (uint64_t)(raw->header.hDevice),
-							util::binary_to_hex({ (char*)raw + sizeof(RAWINPUTHEADER) + 8,(uint64_t)(raw->header.dwSize - sizeof(RAWINPUTHEADER) - 8) }));
+						//console.log("设备类型:{}-{:08X} 数据:{}", raw->header.dwType, (uint64_t)(raw->header.hDevice),
+							//util::binary_to_hex({ (char*)raw + sizeof(RAWINPUTHEADER) + 8,(uint64_t)(raw->header.dwSize - sizeof(RAWINPUTHEADER) - 8) }));
 
 						int x = 0;
 						//console.log("读到数据:{}", );

@@ -66,10 +66,14 @@ void easyWDM::WndHookProc(HWND hWnd, bool isCreate)
 	auto className = helper::getWndClass(hWnd);
 	eString psName = helper::getProcessName(hWnd);
 
-	if (isCreate)
-	{
-	}
 	console.log("{}:{:08X} - {} -　{} - {}", isCreate ? "创建" : "显示", (DWORD)hWnd, txtName, className, psName);
+
+	//处理需要排除的窗口
+	if (is_match("filter_windows", psName, txtName, className))
+	{
+		console.log("排除窗口:{:08X} - {} -　{} - {}", (DWORD)hWnd, txtName, className, psName);
+		return;
+	}
 
 	//处理需要隐藏的窗口
 	if (is_match("hide_windows", psName, txtName, className))
@@ -78,14 +82,9 @@ void easyWDM::WndHookProc(HWND hWnd, bool isCreate)
 		::ShowWindow(hWnd, SW_HIDE);
 		return;
 	}
-
-	//处理需要排除的窗口
-	if (is_match("filter_windows", psName, txtName, className))
-	{
-		console.log("排除窗口:{:08X} - {} -　{} - {}", (DWORD)hWnd, txtName, className, psName);
-		return;
-	}
 	
+
+
 	//只转移创建后5秒内显示的窗口
 	constexpr auto MAX_WAIT_TIME = 5;
 
