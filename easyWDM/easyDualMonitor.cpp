@@ -13,7 +13,7 @@ using namespace easy;
 #define MID_LIMIT 4
 #define MID_AUTO_RUN 5
 #define MID_RELOAD_CONFIG 6
-
+ 
 static constexpr auto app_name = "easyWDM";
 
 int APIENTRY WinMain(_In_ HINSTANCE hInstance,
@@ -22,14 +22,18 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
 	_In_ int       nCmdShow)
 {
 	helper::m_runDlgIcon = LoadIcon(::GetModuleHandleA(nullptr), MAKEINTRESOURCEA(IDI_TRAYICONDEMO));
+    
+	//FilePath fp("C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise");
+	//auto aa= fp.is_exists();
 
-	worker.startWork(1);
-	
-	console.set_logfile();
-	console.log("启动");
-
+	//设置exe所在目录为当前目录
 	process.set_current_dir("");
 
+	worker.startWork(1);
+
+	console.set_logfile();
+	console.log("启动");
+	
 	process.set_app_name(app_name);
 
 	if (process.is_already_run())

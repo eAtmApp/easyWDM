@@ -13,8 +13,13 @@ public:
 	easyWDM(tray_icon& tray);
 	~easyWDM();
 
+    //删除键盘色子
+    void    UninitstallKeyHook();
+
 	//清除钩子
 	void	UninstallHook();
+
+    jsoncpp& get_config_item(jsoncpp &param);
 
 	//安装钩子
 	bool	initWDM();

@@ -7,7 +7,7 @@
             "type": "start"
         },
         "win+c": {
-            "dir": "d:\\",
+            "dir": "",
             "path": "cmd.exe",
             "type": "open"
         },
