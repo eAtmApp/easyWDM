@@ -354,8 +354,8 @@ public:
                 RECT rct = {0};
                 if (!::GetWindowRect(hWndCCC, &rct)) continue;
 
-                //全是0的窗口不显示
-                if (rct.bottom - rct.top <= 1 || rct.right - rct.left <= 1) continue;
+                //小于30的不处理
+                if (rct.bottom - rct.top <= 30 || rct.right - rct.left <= 30) continue;
 
                 if (MonitorFromRect(&rct, MONITOR_DEFAULTTONEAREST) != hMonitor) continue;
 

@@ -37,12 +37,9 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
     _In_ LPSTR    lpCmdLine,
     _In_ int       nCmdShow)
 {
-    helper::ShowRunDlg(false);
+    //helper::ShowRunDlg(false);
 
     helper::m_runDlgIcon = LoadIcon(::GetModuleHandleA(nullptr), MAKEINTRESOURCEA(IDI_TRAYICONDEMO));
-
-    test();
-    return 0;
 
     //FilePath fp("C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise");
     //auto aa= fp.is_exists();
