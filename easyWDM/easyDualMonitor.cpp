@@ -13,71 +13,92 @@ using namespace easy;
 #define MID_LIMIT 4
 #define MID_AUTO_RUN 5
 #define MID_RELOAD_CONFIG 6
- 
+
 static constexpr auto app_name = "easyWDM";
 
-int APIENTRY WinMain(_In_ HINSTANCE hInstance,
-	_In_opt_ HINSTANCE hPrevInstance,
-	_In_ LPSTR    lpCmdLine,
-	_In_ int       nCmdShow)
+void test()
 {
-	helper::m_runDlgIcon = LoadIcon(::GetModuleHandleA(nullptr), MAKEINTRESOURCEA(IDI_TRAYICONDEMO));
+    SHELLEXECUTEINFOA execInfo = {0};
+    execInfo.cbSize = sizeof(execInfo);
+    execInfo.lpVerb = "open";
+    execInfo.lpFile ="C:\\Windows\\System32\\openssh";
+    execInfo.nShow = SW_SHOWNORMAL;
+
+    execInfo.fMask = SEE_MASK_FLAG_NO_UI;
+    execInfo.fMask |= SEE_MASK_HMONITOR;
     
-	//FilePath fp("C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise");
-	//auto aa= fp.is_exists();
+    bool result = ShellExecuteExA(&execInfo);
 
-	//设置exe所在目录为当前目录
-	process.set_current_dir("");
+    auto xx=0;
+}
 
-	worker.startWork(1);
+int APIENTRY WinMain(_In_ HINSTANCE hInstance,
+    _In_opt_ HINSTANCE hPrevInstance,
+    _In_ LPSTR    lpCmdLine,
+    _In_ int       nCmdShow)
+{
+    helper::ShowRunDlg(false);
 
-	console.set_logfile();
-	console.log("启动");
-	
-	process.set_app_name(app_name);
+    helper::m_runDlgIcon = LoadIcon(::GetModuleHandleA(nullptr), MAKEINTRESOURCEA(IDI_TRAYICONDEMO));
 
-	if (process.is_already_run())
-	{
-		process.exit("不允许重复运行!");
-		return 0;
-	}
+    test();
+    return 0;
 
-	tray_icon tray(IDI_TRAYICONDEMO, app_name);
+    //FilePath fp("C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise");
+    //auto aa= fp.is_exists();
 
-	easyWDM wdm(tray);
+    //设置exe所在目录为当前目录
+    process.set_current_dir("");
 
-	tray.AddMenu("开机自动运行", MID_AUTO_RUN, [&]()
-		{
-			bool is_enable = !tray.GetCheck();
-			if (process.set_autorun(is_enable))
-			{
-				tray.SetCheck(is_enable);
-			}
-			//tray.show_info("test");
-		});
+    worker.startWork(1);
 
-	tray.AddSeparator();
+    console.set_logfile();
+    console.log("启动");
 
-	/*
-		tray.AddMenu("重新运行(&R)", [&]()
-			{
-				tray.DeleteTray();
+    process.set_app_name(app_name);
 
-			});*/
+    if (process.is_already_run())
+    {
+        process.exit("不允许重复运行!");
+        return 0;
+    }
 
-	//tray.AddSeparator();
-	tray.AddMenu("退出(&X)", [&]()
-		{
-			tray.close();
-		});
+    tray_icon tray(IDI_TRAYICONDEMO, app_name);
 
-	tray.SetCheck(MID_AUTO_RUN, process.is_autorun());
+    easyWDM wdm(tray);
 
-	wdm.initWDM();
+    tray.AddMenu("开机自动运行", MID_AUTO_RUN, [&]()
+    {
+        bool is_enable = !tray.GetCheck();
+        if (process.set_autorun(is_enable))
+        {
+            tray.SetCheck(is_enable);
+        }
+        //tray.show_info("test");
+    });
 
-	tray.run();
+    tray.AddSeparator();
 
-	worker.stop();
+    /*
+        tray.AddMenu("重新运行(&R)", [&]()
+            {
+                tray.DeleteTray();
 
-	return 0;
+            });*/
+
+            //tray.AddSeparator();
+    tray.AddMenu("退出(&X)", [&]()
+    {
+        tray.close();
+    });
+
+    tray.SetCheck(MID_AUTO_RUN, process.is_autorun());
+
+    wdm.initWDM();
+
+    tray.run();
+
+    worker.stop();
+
+    return 0;
 }

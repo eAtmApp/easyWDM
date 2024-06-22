@@ -138,93 +138,98 @@ public:
         RECT rct = {0};
         getCurrentMonitorRecv(&rct);
 
+        PVOID OldValue = nullptr;
+        Wow64DisableWow64FsRedirection(&OldValue);
+
         HWND hSBWnd = nullptr;
         hSBWnd = CreateWindowA("Static", nullptr, 0, rct.left, rct.bottom - 300, 300, 300, nullptr, nullptr, (HINSTANCE)::GetModuleHandleA(NULL), NULL);
         if (hSBWnd)
         {
             static WNDPROC prevWndProc;
-
             struct _tagTemp {
                 static LRESULT CALLBACK WndProcedure(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
                     switch (uMsg) {
-                    case WM_NOTIFY:
-                    {
-                        if (wParam == 0)
+                        case WM_NOTIFY:
                         {
-                            struct tagNMRUNFILEDLGW {
-                                NMHDR		hdr;
-                                LPCWSTR		lpszFile;
-                                LPCWSTR		lpszDirectory;
-                                int			nShow;
-                            };
-                            auto param = (tagNMRUNFILEDLGW*)lParam;
-                            eString path = util::unicode_ansi(param->lpszFile);
-
-                            int error_code = 0;
-                            if (!runApp("open", path, "", "", -1, &error_code))
+                            if (wParam == 0)
                             {
-                                eString err_type;
-                                switch (error_code)
-                                {
-                                case SE_ERR_FNF:
-                                    err_type = "文件未找到";
-                                    break;
-                                case SE_ERR_PNF:
-                                    err_type = "找不到路径";
-                                    break;
-                                case SE_ERR_ACCESSDENIED:
-                                    err_type = "拒绝访问";
-                                    break;
-                                case SE_ERR_OOM:
-                                    err_type = "内存溢出";
-                                    break;
-                                case SE_ERR_DLLNOTFOUND:
-                                    err_type = "动态链接库未找到";
-                                    break;
-                                case SE_ERR_SHARE:
-                                    err_type = "共享文件未找到";
-                                    break;
-                                case SE_ERR_ASSOCINCOMPLETE:
-                                    err_type = "文件关联信息不完整";
-                                    break;
-                                case SE_ERR_DDETIMEOUT:
-                                    err_type = "DDE操作超时";
-                                    break;
-                                case SE_ERR_DDEFAIL:
-                                    err_type = "DDE操作失败";
-                                    break;
-                                case SE_ERR_DDEBUSY:
-                                    err_type = "DDE正忙";
-                                    break;
-                                case SE_ERR_NOASSOC:
-                                    err_type = "没有找到关联的应用程序";
-                                    break;
-                                default:
-                                    err_type.Format("操作失败({})", error_code);
-                                }
+                                struct tagNMRUNFILEDLGW {
+                                    NMHDR		hdr;
+                                    LPCWSTR		lpszFile;
+                                    LPCWSTR		lpszDirectory;
+                                    int			nShow;
+                                };
+                                auto param = (tagNMRUNFILEDLGW*)lParam;
+                                eString path = util::unicode_ansi(param->lpszFile);
 
-                                eString err_msg;
-                                err_msg.Format("找不开文件 '{}' {}", path.c_str(), err_type.c_str());
-                                ::MessageBoxA(hwnd, err_msg.c_str(), path.c_str(), MB_OK | MB_ICONERROR);
-                                return 2;
-                            }
-                            else {
-                                return 1;
+                                int error_code = 0;
+                                if (!runApp("open", path, "", "", -1, &error_code))
+                                {
+                                    eString err_type;
+                                    switch (error_code)
+                                    {
+                                        case SE_ERR_FNF:
+                                            err_type = "文件未找到";
+                                            break;
+                                        case SE_ERR_PNF:
+                                            err_type = "找不到路径";
+                                            break;
+                                        case SE_ERR_ACCESSDENIED:
+                                            err_type = "拒绝访问";
+                                            break;
+                                        case SE_ERR_OOM:
+                                            err_type = "内存溢出";
+                                            break;
+                                        case SE_ERR_DLLNOTFOUND:
+                                            err_type = "动态链接库未找到";
+                                            break;
+                                        case SE_ERR_SHARE:
+                                            err_type = "共享文件未找到";
+                                            break;
+                                        case SE_ERR_ASSOCINCOMPLETE:
+                                            err_type = "文件关联信息不完整";
+                                            break;
+                                        case SE_ERR_DDETIMEOUT:
+                                            err_type = "DDE操作超时";
+                                            break;
+                                        case SE_ERR_DDEFAIL:
+                                            err_type = "DDE操作失败";
+                                            break;
+                                        case SE_ERR_DDEBUSY:
+                                            err_type = "DDE正忙";
+                                            break;
+                                        case SE_ERR_NOASSOC:
+                                            err_type = "没有找到关联的应用程序";
+                                            break;
+                                        default:
+                                            err_type.Format("操作失败({})", error_code);
+                                    }
+
+                                    eString err_msg;
+                                    err_msg.Format("找不开文件 '{}' {}", path.c_str(), err_type.c_str());
+                                    ::MessageBoxA(hwnd, err_msg.c_str(), path.c_str(), MB_OK | MB_ICONERROR);
+                                    return 2;
+                                }
+                                else {
+                                    return 1;
+                                }
                             }
                         }
-                    }
-                    default:
-                        return CallWindowProc(prevWndProc, hwnd, uMsg, wParam, lParam);
+                        default:
+                            return CallWindowProc(prevWndProc, hwnd, uMsg, wParam, lParam);
                     }
                     return 0;
                 };
             };
             prevWndProc = (WNDPROC)SetWindowLongPtr(hSBWnd, GWLP_WNDPROC, (LONG_PTR)&_tagTemp::WndProcedure);
-
             activeWnd(hSBWnd);
             s_RunDlg(hSBWnd, nullptr, nullptr, nullptr, nullptr, 0x4 | 0x1);
             ::DestroyWindow(hSBWnd);
+
         }
+
+        if (OldValue) Wow64RevertWow64FsRedirection(OldValue);
+
         return hSBWnd != nullptr;
     }
 
@@ -424,18 +429,12 @@ public:
 
     static	bool	runApp(etd::string type, FilePath path, etd::string param, etd::string dir, int showtype = -1, int* lpErrCode = nullptr)
     {
-        PVOID OldValue = nullptr;
-        BOOL bDisableWow64 = FALSE;
-
         path.trim();
 
         bool bfoundFile = false;
 
-        if (!path.is_absolute())
+        if (path.is_absolute())
         {
-            bDisableWow64 = Wow64DisableWow64FsRedirection(&OldValue);
-        }
-        else {
             //从绝对路径判断文件.
             bfoundFile = path.is_exists();
         }
@@ -492,51 +491,14 @@ public:
         execInfo.hMonitor = getCurrentMonitor();
 
         bool result = ShellExecuteExA(&execInfo);
-
-        if (bDisableWow64) Wow64RevertWow64FsRedirection(OldValue);
-
+        
         if (lpErrCode)
         {
             *lpErrCode = (int)execInfo.hInstApp;
         }
         return (int)execInfo.hInstApp > 32;
     }
-
-    /*
-        static	bool	runApp(etd::string type, etd::string path, etd::string param, etd::string dir)
-        {
-            PVOID OldValue = nullptr;
-            BOOL bDisableWow64 = FALSE;
-
-            if (!path.is_full_path())
-            {
-                bDisableWow64 = Wow64DisableWow64FsRedirection(&OldValue);
-            }
-
-            if (dir.empty())
-            {
-                if (path.is_full_path()) dir = path.to_file_dir();
-                else {
-                    //dir = "XXX";
-                    char szBuffer[1024] = { 0 };
-                    GetEnvironmentVariableA("USERPROFILE", szBuffer, sizeof(szBuffer));
-                    dir = szBuffer;
-                }
-            }
-
-            auto result = ShellExecuteA(nullptr,
-                type.empty() ? nullptr : type.data(),
-                path.data(),
-                param.empty() ? nullptr : param.data(),
-                dir.empty() ? nullptr : dir.data(),
-                SW_SHOWNORMAL);
-
-            if (bDisableWow64) Wow64RevertWow64FsRedirection(OldValue);
-
-            return result > (HINSTANCE)32;
-        }*/
-
-        //窗口信息
+    //窗口信息
     static std::string getWndClass(HWND hWnd)
     {
         std::string result;
