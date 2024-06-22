@@ -433,6 +433,9 @@ public:
 
         bool bfoundFile = false;
 
+        PVOID OldValue = nullptr;
+        Wow64DisableWow64FsRedirection(&OldValue);
+
         if (path.is_absolute())
         {
             //从绝对路径判断文件.
@@ -496,6 +499,9 @@ public:
         {
             *lpErrCode = (int)execInfo.hInstApp;
         }
+
+        if (OldValue) Wow64RevertWow64FsRedirection(OldValue);
+
         return (int)execInfo.hInstApp > 32;
     }
     //窗口信息
