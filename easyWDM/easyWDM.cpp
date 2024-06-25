@@ -386,6 +386,7 @@ bool easyWDM::initWDM()
         });
     }
 
+    //系统从锁定到重新解锁进入时的消息(需要重置key)
     if (WTSRegisterSessionNotification(_tray.GetWnd(), NOTIFY_FOR_THIS_SESSION))
     {
         _tray.set_msg_handler(WM_WTSSESSION_CHANGE, [&](WPARAM wParam, LPARAM lParam)

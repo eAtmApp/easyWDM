@@ -111,7 +111,8 @@ public:
         return "";
     }
 
-    static bool ShowRunDlg(bool is_thread = false)
+    //显示运行对话框
+    static bool ShowRunDlg(bool async = false)
     {
         //父窗口句柄,图标,工作路径,窗口标题,说明文字,未知(跟踪显示为0x14或0x4)
         typedef DWORD(WINAPI* LPRUNDLG)(HWND, HICON, LPCWSTR, LPCWSTR, LPCWSTR, DWORD);
@@ -128,13 +129,12 @@ public:
         }
 
         //不在主线程显示对话框
-        if (is_thread)
+        if (async)
         {
-            std::thread thread_(helper::ShowRunDlg, false);
-            thread_.detach();
+            worker.async(helper::ShowRunDlg, false);
             return true;
         }
-
+        
         RECT rct = {0};
         getCurrentMonitorRecv(&rct);
 
@@ -164,46 +164,10 @@ public:
 
                                 int error_code = 0;
                                 if (!runApp("open", path, "", "", -1, &error_code))
+                                //error_code = runApp2(path);
+                                if (error_code)
                                 {
-                                    eString err_type;
-                                    switch (error_code)
-                                    {
-                                        case SE_ERR_FNF:
-                                            err_type = "文件未找到";
-                                            break;
-                                        case SE_ERR_PNF:
-                                            err_type = "找不到路径";
-                                            break;
-                                        case SE_ERR_ACCESSDENIED:
-                                            err_type = "拒绝访问";
-                                            break;
-                                        case SE_ERR_OOM:
-                                            err_type = "内存溢出";
-                                            break;
-                                        case SE_ERR_DLLNOTFOUND:
-                                            err_type = "动态链接库未找到";
-                                            break;
-                                        case SE_ERR_SHARE:
-                                            err_type = "共享文件未找到";
-                                            break;
-                                        case SE_ERR_ASSOCINCOMPLETE:
-                                            err_type = "文件关联信息不完整";
-                                            break;
-                                        case SE_ERR_DDETIMEOUT:
-                                            err_type = "DDE操作超时";
-                                            break;
-                                        case SE_ERR_DDEFAIL:
-                                            err_type = "DDE操作失败";
-                                            break;
-                                        case SE_ERR_DDEBUSY:
-                                            err_type = "DDE正忙";
-                                            break;
-                                        case SE_ERR_NOASSOC:
-                                            err_type = "没有找到关联的应用程序";
-                                            break;
-                                        default:
-                                            err_type.Format("操作失败({})", error_code);
-                                    }
+                                    eString err_type = process.get_last_error_message(error_code);
 
                                     eString err_msg;
                                     err_msg.Format("找不开文件 '{}' {}", path.c_str(), err_type.c_str());
@@ -307,6 +271,8 @@ public:
 
     static bool ShowDisktop()
     {
+        #define MIN_SIZE_WND 100*100    //最小只处理像素面积
+
         HWND hDesktop = GetDesktopWnd();
 
         HMONITOR hMonitor = getCurrentMonitor();
@@ -354,10 +320,12 @@ public:
                 RECT rct = {0};
                 if (!::GetWindowRect(hWndCCC, &rct)) continue;
 
-                //小于30的不处理
-                if (rct.bottom - rct.top <= 30 || rct.right - rct.left <= 30) continue;
-
                 if (MonitorFromRect(&rct, MONITOR_DEFAULTTONEAREST) != hMonitor) continue;
+
+                //像素面积小于MIN_SIZE_WND的不处理
+                if ((rct.bottom - rct.top) * (rct.right - rct.left) < MIN_SIZE_WND) continue;
+
+                if ((rct.bottom - rct.top) < 50 || (rct.right - rct.left) < 50) continue;
 
                 vec.push_back({hWndCCC,titleName,className,::GetWindow(hWndCCC, GW_OWNER)});
             }
@@ -494,7 +462,7 @@ public:
         execInfo.hMonitor = getCurrentMonitor();
 
         bool result = ShellExecuteExA(&execInfo);
-        
+
         if (lpErrCode)
         {
             *lpErrCode = (int)execInfo.hInstApp;
@@ -504,6 +472,26 @@ public:
 
         return (int)execInfo.hInstApp > 32;
     }
+
+    static  int    runApp2(eString cmdline, eString dir = "")
+    {
+        STARTUPINFOA si = {0};
+        PROCESS_INFORMATION pi{0};
+        si.cb = sizeof(STARTUPINFOA);
+
+        if (!CreateProcessA(NULL, (LPSTR)cmdline.c_str(), NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi))
+        {
+            auto err_code = ::GetLastError();
+            auto msg=process.get_last_error_message(err_code);
+            
+            return err_code;
+        }
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+
+        return 0;
+    }
+
     //窗口信息
     static std::string getWndClass(HWND hWnd)
     {
@@ -648,42 +636,36 @@ public:
     }
 
     //显示开始菜单
-    static bool		show_StartMenu()
+    static void show_StartMenu(bool async = true)
     {
-
-        auto thread_proc = []()
+        if (async)
         {
-            HWND hStartWnd = GetCurrentMonitorStartMenuWnd();
-            if (!hStartWnd) return false;
+            worker.async(show_StartMenu, false);
+            return;
+        }
 
-            //console.log("StartMenu: {08X}", (int)hStartWnd);
+        HWND hStartWnd = GetCurrentMonitorStartMenuWnd();
+        if (!hStartWnd) return;
+        
+        HWND hWnd = GetParent(hStartWnd);
+        HWND hForeWnd;
+        DWORD dwForeID;
+        DWORD dwCurID;
+        hForeWnd = GetForegroundWindow();
+        dwCurID = GetCurrentThreadId();
+        dwForeID = GetWindowThreadProcessId(hForeWnd, nullptr);
+        AttachThreadInput(dwCurID, dwForeID, TRUE);
+        ShowWindow(hWnd, SW_SHOWNORMAL);
+        SetWindowPos(hWnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
+        SetWindowPos(hWnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
+        SetForegroundWindow(hWnd);
+        AttachThreadInput(dwCurID, dwForeID, FALSE);
 
-            HWND hWnd = GetParent(hStartWnd);
-            HWND hForeWnd;
-            DWORD dwForeID;
-            DWORD dwCurID;
-            hForeWnd = GetForegroundWindow();
-            dwCurID = GetCurrentThreadId();
-            dwForeID = GetWindowThreadProcessId(hForeWnd, nullptr);
-            AttachThreadInput(dwCurID, dwForeID, TRUE);
-            ShowWindow(hWnd, SW_SHOWNORMAL);
-            SetWindowPos(hWnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
-            SetWindowPos(hWnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
-            SetForegroundWindow(hWnd);
-            AttachThreadInput(dwCurID, dwForeID, FALSE);
-
-            return UIAutoInvoke(hStartWnd);
-
-            PostMessageA(hStartWnd, WM_MOUSEMOVE, 0, MAKELONG(15, 15));
-            PostMessageA(hStartWnd, WM_LBUTTONDOWN, MK_LBUTTON, MAKELONG(15, 15));
-            PostMessageA(hStartWnd, WM_LBUTTONUP, 0, MAKELONG(15, 15));
-
-            return false;
-        };
-
-        std::thread thread(thread_proc);
-        thread.detach();
-        return true;
+        UIAutoInvoke(hStartWnd);
+        
+        //std::thread thread(thread_proc);
+        //thread.detach();
+        //return true;
     }
 
     //枚举显示器

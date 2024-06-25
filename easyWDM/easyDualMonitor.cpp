@@ -46,8 +46,8 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
 
     //设置exe所在目录为当前目录
     process.set_current_dir("");
-
-    worker.startWork(1);
+    
+    worker.startWork(5);
 
     console.set_logfile();
     console.log("启动");

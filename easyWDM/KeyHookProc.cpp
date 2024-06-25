@@ -25,13 +25,9 @@ bool easyWDM::KeyMessage(UINT uType, KBDLLHOOKSTRUCT* pHook)
     }
 
     UCHAR uKey = (UCHAR)pHook->vkCode;
-
-    if (uKey == VK_LWIN)
-    {
-        //console.log("win key");
-    }
-
-    bool is_handler = false;
+    
+    //标识是否处理了
+    bool isProcessed = false;
 
     //处理系统key,将他设置为普通key方便处理
     bool is_sys_key = false;
@@ -54,44 +50,41 @@ bool easyWDM::KeyMessage(UINT uType, KBDLLHOOKSTRUCT* pHook)
     //处理热键
     if (uType == WM_KEYDOWN && ((uKey >= '0' && uKey <= '9') || (uKey >= 'A' && uKey <= 'Z') || (uKey >= VK_F1 && uKey <= VK_F24)))
     {
-        DWORD flags = key_status.get_hotkey_flags();
-        if (flags != 0)
-        {
-            int x = 0;
-        }
+        DWORD hotkey_flags = key_status.get_hotkey_flags();
+        
         if (uKey >= VK_F1 && uKey <= VK_F24)
         {
-            if (HandlerHotkey(uKey, flags))
+            if (HandlerHotkey(uKey, hotkey_flags))
             {
-                is_handler = true;
+                isProcessed = true;
             }
         }
         else
         {
-            if (flags && HandlerHotkey(uKey, flags))
+            if (hotkey_flags && HandlerHotkey(uKey, hotkey_flags))
             {
-                is_handler = true;
+                isProcessed = true;
             }
         }
     }
 
     //过滤win键
     {
-        if (uType == WM_KEYDOWN && !is_handler && m_filter_win_status && uKey != VK_LWIN)
+        if (uType == WM_KEYDOWN && !isProcessed && m_filter_win_status && uKey != VK_LWIN)
         {
             //console.log("发送按下WIN");
             m_filter_win_status = false;
             keybd_event(VK_LWIN, 0, KEYEVENTF_EXTENDEDKEY | 0, 0x3412259);
             //keybd_event(VK_LWIN, 0, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0);
         }
-
+        
         if (uKey == VK_LWIN)
         {
             //单按下过滤
             if (uType == WM_KEYDOWN && key_status.get_hotkey_flags_noBy(FLAGS_WIN) == 0)
             {
                 m_filter_win_status = true;
-                is_handler = true;
+                isProcessed = true;
                 //console.log("过滤WIN");
             }
 
@@ -100,7 +93,7 @@ bool easyWDM::KeyMessage(UINT uType, KBDLLHOOKSTRUCT* pHook)
             {
                 //console.log("重置WIN");
                 m_filter_win_status = false;
-                is_handler = true;
+                isProcessed = true;
             }
         }
     }
@@ -169,7 +162,7 @@ bool easyWDM::KeyMessage(UINT uType, KBDLLHOOKSTRUCT* pHook)
         }
     }
 
-    return is_handler;
+    return isProcessed;
 }
 
 LRESULT CALLBACK easyWDM::KeyHookProc(int nCode, WPARAM wParam, LPARAM lParam)

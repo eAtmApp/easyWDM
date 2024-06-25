@@ -124,6 +124,7 @@ private:
 			if (keys[VK_LWIN] || keys[VK_RWIN]) flags |= FLAGS_WIN;
 			return flags;
 		}
+
 		//²»·Ö×óÓÒ
 		DWORD	inline get_hotkey_flags_noBy(WORD noKey)
 		{
