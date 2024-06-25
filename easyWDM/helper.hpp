@@ -134,7 +134,7 @@ public:
             worker.async(helper::ShowRunDlg, false);
             return true;
         }
-        
+
         RECT rct = {0};
         getCurrentMonitorRecv(&rct);
 
@@ -163,9 +163,8 @@ public:
                                 eString path = util::unicode_ansi(param->lpszFile);
 
                                 int error_code = 0;
-                                if (!runApp("open", path, "", "", -1, &error_code))
                                 //error_code = runApp2(path);
-                                if (error_code)
+                                if (!runApp("open", path, "", "", -1, &error_code))
                                 {
                                     eString err_type = process.get_last_error_message(error_code);
 
@@ -482,8 +481,8 @@ public:
         if (!CreateProcessA(NULL, (LPSTR)cmdline.c_str(), NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi))
         {
             auto err_code = ::GetLastError();
-            auto msg=process.get_last_error_message(err_code);
-            
+            auto msg = process.get_last_error_message(err_code);
+
             return err_code;
         }
         CloseHandle(pi.hProcess);
@@ -646,7 +645,7 @@ public:
 
         HWND hStartWnd = GetCurrentMonitorStartMenuWnd();
         if (!hStartWnd) return;
-        
+
         HWND hWnd = GetParent(hStartWnd);
         HWND hForeWnd;
         DWORD dwForeID;
@@ -662,7 +661,7 @@ public:
         AttachThreadInput(dwCurID, dwForeID, FALSE);
 
         UIAutoInvoke(hStartWnd);
-        
+
         //std::thread thread(thread_proc);
         //thread.detach();
         //return true;

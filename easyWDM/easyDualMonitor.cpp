@@ -38,6 +38,7 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
     _In_ int       nCmdShow)
 {
     //helper::ShowRunDlg(false);
+    //return 0;
 
     helper::m_runDlgIcon = LoadIcon(::GetModuleHandleA(nullptr), MAKEINTRESOURCEA(IDI_TRAYICONDEMO));
 
