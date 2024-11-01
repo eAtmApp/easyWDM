@@ -1,0 +1,153 @@
+
+	/*
+		HRESULT hr;
+		auto pAuto = easy_uiautomation::create_IUIAutomation();
+		IUIAutomationElement* pRootElement = nullptr;
+		IUIAutomationCondition* pCond = nullptr;
+
+		do
+		{
+			// 创建 IUIAutomation 对象
+			hr = CoCreateInstance(CLSID_CUIAutomation, nullptr, CLSCTX_INPROC_SERVER, IID_IUIAutomation, (void**)&pAutomation);
+			if (pAutomation)
+			{
+				hr = pAutomation->ElementFromHandle(hTaskBar, &pRootElement);
+			}
+		} while (false);*/
+
+		/*
+			return enumElement(pAutomation, dwProcessId, "TaskViewButton", pRootElement, [](IUIAutomationElement* pElement)
+			{
+				return false;
+			});*/
+
+			
+bool	click_ui_button(LPCTSTR szId, LPCTSTR szName)
+{
+	HRESULT hr;
+	IUIAutomation* pAutomation = nullptr;
+	IUIAutomationElement* pRootElement = nullptr;
+	IUIAutomationElement* pButtonElement = nullptr;
+	IUIAutomationCondition* pCond = nullptr;
+
+	IUIAutomationElementArray* pElementArray = nullptr;
+
+	do
+	{
+
+		// 创建 IUIAutomation 对象
+		hr = CoCreateInstance(CLSID_CUIAutomation, nullptr, CLSCTX_INPROC_SERVER, IID_IUIAutomation, (void**)&pAutomation);
+		if (FAILED(hr) || pAutomation == nullptr) break;
+
+		// 获取 UI 自动化树的根元素
+		hr = pAutomation->GetRootElement(&pRootElement);
+		if (FAILED(hr) || pRootElement == nullptr) break;
+
+		auto wsString = easy::etd::string::ansi_unicode(szId);
+
+		//控件类型
+/*
+	pCond = create_condition(pAutomation, UIA_ControlTypePropertyId, _variant_t(0xC350), pCond);
+		if (pCond == nullptr) break;
+
+		// 创建 id 属性条件
+		pCond = create_condition(pAutomation, UIA_AutomationIdPropertyId, _variant_t(wsString.c_str()), nullptr);
+		if (pCond == nullptr) break;
+
+		// 创建 name 属性条件
+		if (szName)
+		{
+			wsString = easy::etd::string::ansi_unicode(szName);
+			pCond = create_condition(pAutomation, UIA_NamePropertyId, _variant_t(wsString.c_str()), pCond);
+		}
+
+		pCond = create_condition(pAutomation, UIA_ProcessIdPropertyId, _variant_t(11812), pCond);*/
+
+		/*
+				//查找所有符合条件的
+				hr = pRootElement->FindAll(TreeScope_Subtree, pCond, &pElementArray);
+				if (FAILED(hr) || pElementArray == nullptr) break;
+
+				int count = 0;
+				pElementArray->get_Length(&count);
+				if (FAILED(hr)) break;
+
+				// 遍历所有符合条件的元素
+				for (int i = 0; i < count; ++i) {
+					IUIAutomationElement* pElement = nullptr;
+					hr = pElementArray->GetElement(i, &pElement);
+					if (SUCCEEDED(hr) && pElement)
+					{
+						// 处理每个元素
+						pElement->Release();
+					}
+				}
+				pElementArray->Release();*/
+
+
+				//查找单个符合条件的元素
+		hr = pRootElement->FindFirst(TreeScope_Subtree, pCond, &pButtonElement);
+
+		if (SUCCEEDED(hr) && pButtonElement) {
+
+			UIA_HWND hwnd;
+			pButtonElement->get_CurrentNativeWindowHandle(&hwnd);
+
+			// 执行点击操作
+			IUIAutomationInvokePattern* pInvokePattern = nullptr;
+
+			hr = pButtonElement->GetCurrentPattern(UIA_InvokePatternId, (IUnknown**)&pInvokePattern);
+			if (!SUCCEEDED(hr) || !pInvokePattern)
+			{
+				hr = pButtonElement->GetCurrentPattern(UIA_TogglePatternId, (IUnknown**)&pInvokePattern);
+			}
+
+			if (SUCCEEDED(hr) && pInvokePattern) {
+				hr = pInvokePattern->Invoke();
+				pInvokePattern->Release();
+			}
+			else {
+				std::cerr << "Failed to get InvokePattern." << std::endl;
+			}
+		}
+
+	} while (false);
+
+	// 清理资源
+	if (pElementArray) pElementArray->Release();
+	if (pCond) pCond->Release();
+	if (pButtonElement) pButtonElement->Release();
+	if (pRootElement) pRootElement->Release();
+	if (pAutomation) pAutomation->Release();
+
+	return SUCCEEDED(hr);
+}
+
+	//单击任务栏按钮
+	static void click_tackbar_button(LPCTSTR szClassName, bool async = true)
+	{
+		if (async)
+		{
+			worker.async(click_tackbar_button, szClassName, false);
+			return;
+		}
+
+		HWND hStartWnd = GetCurMonitorTaskBarButton(szClassName);
+		if (!hStartWnd) return;
+
+		HWND hWnd = GetParent(hStartWnd);
+		HWND hForeWnd;
+		DWORD dwForeID;
+		DWORD dwCurID;
+		hForeWnd = GetForegroundWindow();
+		dwCurID = GetCurrentThreadId();
+		dwForeID = GetWindowThreadProcessId(hForeWnd, nullptr);
+		AttachThreadInput(dwCurID, dwForeID, TRUE);
+		ShowWindow(hWnd, SW_SHOWNORMAL);
+		SetWindowPos(hWnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
+		SetWindowPos(hWnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
+		SetForegroundWindow(hWnd);
+		AttachThreadInput(dwCurID, dwForeID, FALSE);
+
+		UIAutoInvoke(hStartWnd);
+	}

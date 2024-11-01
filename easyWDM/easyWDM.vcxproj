@@ -170,6 +170,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="easyWDM.h" />
+    <ClInclude Include="easy_uiautomation.hpp" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="helper.hpp" />
     <ClInclude Include="pch.h" />
@@ -203,6 +204,9 @@
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="..\..\..\easy_cpp\easylib\easylib\natvis\jsoncpp.natvis" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="bak.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

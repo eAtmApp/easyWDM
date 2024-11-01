@@ -42,6 +42,9 @@
     <ClInclude Include="pch.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="easy_uiautomation.hpp">
+      <Filter>easyWDM</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="easyDualMonitor.cpp">
@@ -90,5 +93,10 @@
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="..\..\..\easy_cpp\easylib\easylib\natvis\jsoncpp.natvis" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="bak.txt">
+      <Filter>easyWDM</Filter>
+    </Text>
   </ItemGroup>
 </Project>

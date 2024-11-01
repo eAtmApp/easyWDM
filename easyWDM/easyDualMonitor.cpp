@@ -16,87 +16,127 @@ using namespace easy;
 
 static constexpr auto app_name = "easyWDM";
 
-void test()
+bool enumElement(IUIAutomation* pAutomation
+	, DWORD dwProcessId
+	, LPCSTR szAutomationId
+	, IUIAutomationElement* pElement
+	, std::function<bool(IUIAutomationElement* pElement)>&& cb)
 {
-    SHELLEXECUTEINFOA execInfo = {0};
-    execInfo.cbSize = sizeof(execInfo);
-    execInfo.lpVerb = "open";
-    execInfo.lpFile ="C:\\Windows\\System32\\openssh";
-    execInfo.nShow = SW_SHOWNORMAL;
+	/*
 
-    execInfo.fMask = SEE_MASK_FLAG_NO_UI;
-    execInfo.fMask |= SEE_MASK_HMONITOR;
-    
-    bool result = ShellExecuteExA(&execInfo);
+	auto pCond = create_condition(pAutomation, UIA_AutomationIdPropertyId, _variant_t(etd::string::ansi_unicode(szAutomationId).c_str()), nullptr);
 
-    auto xx=0;
+	IUIAutomationElementArray* pChildren = nullptr;
+	console.time();
+	auto hr = pElement->FindAll(TreeScope_Subtree, pCond, &pChildren);
+	console.timeEnd();
+	if (!pChildren) return false;
+
+	int count = 0;
+	pChildren->get_Length(&count);
+
+	for (int i = 0; i < count; ++i) {
+		IUIAutomationElement* pChild = nullptr;
+		hr = pChildren->GetElement(i, &pChild);
+		if (SUCCEEDED(hr) && pChild)
+		{
+			// 处理每个元素
+			pChild->Release();
+		}
+	}
+
+	*/
+	return false;
 }
 
+
 int APIENTRY WinMain(_In_ HINSTANCE hInstance,
-    _In_opt_ HINSTANCE hPrevInstance,
-    _In_ LPSTR    lpCmdLine,
-    _In_ int       nCmdShow)
+	_In_opt_ HINSTANCE hPrevInstance,
+	_In_ LPSTR    lpCmdLine,
+	_In_ int       nCmdShow)
 {
-    //helper::ShowRunDlg(false);
-    //return 0;
+	CoInitializeEx(NULL, COINIT_MULTITHREADED);
 
-    helper::m_runDlgIcon = LoadIcon(::GetModuleHandleA(nullptr), MAKEINTRESOURCEA(IDI_TRAYICONDEMO));
 
-    //FilePath fp("C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise");
-    //auto aa= fp.is_exists();
+/*
+	auto hTaskBar = helper::getCurrentMonitorTaskBarWnd();
+	if (hTaskBar)
+	{
+		easy_uiautomation uiAuto(hTaskBar);
+		if (uiAuto)
+		{
+			uiAuto.AddCond(UIA_AutomationIdPropertyId, etd::string::ansi_unicode("StartButton").c_str());
+			auto butStart = uiAuto.FindElement();
 
-    //设置exe所在目录为当前目录
-    process.set_current_dir("");
-    
-    worker.startWork(5);
+			do 
+			{
+				butStart.ToggleState();
+				::Sleep(1000);
+			} while (true);
+		}
+	}
+	return 0;*/
 
-    console.set_logfile();
-    console.log("启动");
 
-    process.set_app_name(app_name);
+	helper::m_runDlgIcon = LoadIcon(::GetModuleHandleA(nullptr), MAKEINTRESOURCEA(IDI_TRAYICONDEMO));
 
-    if (process.is_already_run())
-    {
-        process.exit("不允许重复运行!");
-        return 0;
-    }
+	//FilePath fp("C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise");
+	//auto aa= fp.is_exists();
 
-    tray_icon tray(IDI_TRAYICONDEMO, app_name);
+	//设置exe所在目录为当前目录
+	process.set_current_dir("");
 
-    easyWDM wdm(tray);
+	worker.startWork(5);
 
-    tray.AddMenu("开机自动运行", MID_AUTO_RUN, [&]()
-    {
-        bool is_enable = !tray.GetCheck();
-        if (process.set_autorun(is_enable))
-        {
-            tray.SetCheck(is_enable);
-        }
-        //tray.show_info("test");
-    });
+	console.set_logfile();
+	console.log("启动");
 
-    tray.AddSeparator();
+	process.set_app_name(app_name);
 
-    /*
-        tray.AddMenu("重新运行(&R)", [&]()
-            {
-                tray.DeleteTray();
+	if (process.is_already_run())
+	{
+		process.exit("不允许重复运行!");
+		return 0;
+	}
 
-            });*/
+	tray_icon tray(IDI_TRAYICONDEMO, app_name);
 
-            //tray.AddSeparator();
-    tray.AddMenu("退出(&X)", [&]()
-    {
-        tray.close();
-    });
+	easyWDM wdm(tray);
 
-    tray.SetCheck(MID_AUTO_RUN, process.is_autorun());
+	tray.AddMenu("开机自动运行", MID_AUTO_RUN, [&]()
+	{
+		bool is_enable = !tray.GetCheck();
+		if (process.set_autorun(is_enable))
+		{
+			tray.SetCheck(is_enable);
+		}
+		//tray.show_info("test");
+	});
 
-    wdm.initWDM();
+	tray.AddSeparator();
 
-    tray.run();
+	/*
+		tray.AddMenu("重新运行(&R)", [&]()
+			{
+				tray.DeleteTray();
 
-    worker.stop();
+			});*/
 
-    return 0;
+			//tray.AddSeparator();
+	tray.AddMenu("退出(&X)", [&]()
+	{
+		tray.close();
+	});
+
+	tray.SetCheck(MID_AUTO_RUN, process.is_autorun());
+
+	wdm.initWDM();
+
+	tray.run();
+
+	worker.stop();
+
+	CoUninitialize();
+
+	return 0;
 }

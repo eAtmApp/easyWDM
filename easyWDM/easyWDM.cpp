@@ -161,8 +161,6 @@ jsoncpp& easyWDM::get_config_item(jsoncpp& param)
 
 bool easyWDM::initWDM()
 {
-    CoInitializeEx(NULL, COINIT_MULTITHREADED);
-
     refreshMonitor();
 
     if (!initConfig()) return false;
@@ -217,9 +215,13 @@ bool easyWDM::initWDM()
             {
                 helper::ShowDisktop();
             }
+			else if (optype == "task")	//显示任务
+			{
+				helper::show_taskview();
+			}
             else if (optype == "start") //显示开始菜单
             {
-                helper::show_StartMenu();
+                helper::show_start();
             }
             else if (optype == "run") //显示运行对话框
             {
@@ -253,7 +255,7 @@ bool easyWDM::initWDM()
     //SetHotkey("win+d", helper::ShowDisktop);
     //SetHotkey("win+r", std::bind(helper::ShowRunDlg, false));
     //SetHotkey("win", helper::show_StartMenu);
-
+	
     //键盘钩子
     if (_config["hook_key"])
     {
