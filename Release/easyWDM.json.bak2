@@ -12,10 +12,12 @@
             "type": "open"
         },
         "win+d": {
-            "type": "task"
-        },
-        "ctrl+win+d": {
             "type": "desktop"
+        },
+        "win+e": {
+            "param": "::{20D04FE0-3AEA-1069-A2D8-08002B30309D}",
+            "path": "explorer.exe",
+            "type": "open"
         },
         "win+r": {
             "type": "run"
@@ -23,21 +25,15 @@
         "win+z": {
             "path": "calc.exe",
             "type": "open"
-        },
-        "ctrl+alt+w": {
-            "filter": {
-                "ps": "chrome.exe,explorer.exe"
-            },
-            "type": "close_windows",
-            "param": "ok"
         }
     },
     "raw_input": false,
-    //Ö§³Ö¶ÔÏó»òÊı×é
-    "filter_windows": {
-        "ps": "devMonitor.exe",
-        "title": "",
-        "class": ""
+    "filter_windows": { //æ”¯æŒå¯¹è±¡æˆ–æ•°ç»„
+        "ps":"devMonitor.exe",
+        "title":"",
+        "class":""
     },
-    "hide_windows": {}
+    "hide_windows":{ //æ”¯æŒå¯¹è±¡æˆ–æ•°ç»„
+
+    }
 }

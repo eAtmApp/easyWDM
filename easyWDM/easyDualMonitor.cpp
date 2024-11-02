@@ -49,13 +49,16 @@ bool enumElement(IUIAutomation* pAutomation
 	return false;
 }
 
-
 int APIENTRY WinMain(_In_ HINSTANCE hInstance,
 	_In_opt_ HINSTANCE hPrevInstance,
 	_In_ LPSTR    lpCmdLine,
 	_In_ int       nCmdShow)
 {
 	CoInitializeEx(NULL, COINIT_MULTITHREADED);
+
+	//helper::call_hotkey("win+tab");
+
+	//return 0;
 
 /*
 	helper::show_start(false);

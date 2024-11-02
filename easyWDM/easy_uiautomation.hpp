@@ -29,7 +29,7 @@ public:
 	{
 		FromHandle(hWnd);
 	}
-
+	 
 	easy_uiautomation(CComPtr<IUIAutomation> pAutomation, CComPtr<IUIAutomationElement> pElement)
 	{
 		Clear();
@@ -85,17 +85,13 @@ public:
 	bool	ClickElement()
 	{
 		// 执行点击操作
-		CComPtr< IUIAutomationInvokePattern> pInvokePattern = nullptr;
-
-		auto hr = _pElement->GetCurrentPattern(UIA_InvokePatternId, (IUnknown**)&pInvokePattern);
-		if (!pInvokePattern)
-		{
-			hr = _pElement->GetCurrentPattern(UIA_TogglePatternId, (IUnknown**)&pInvokePattern);
-		}
+		CComPtr< IUIAutomationInvokePattern> pPattern = nullptr;
 		
-		if (pInvokePattern)
+		
+		auto hr = _pElement->GetCurrentPattern(UIA_InvokePatternId, (IUnknown**)&pPattern);
+		if (pPattern)
 		{
-			hr = pInvokePattern->Invoke();
+			hr = pPattern->Invoke();
 			if (hr != S_OK)
 			{
 				console.error("UIA_InvokePatternId->Invoke失败");
@@ -104,9 +100,28 @@ public:
 			return true;
 		}
 		else {
-			console.error("没有UIA_InvokePatternId接口");
+			CComPtr< IUIAutomationTogglePattern> pToggle = nullptr;
+			hr = _pElement->GetCurrentPattern(UIA_TogglePatternId, (IUnknown**)&pToggle);
+
+			if (pToggle)
+			{
+				hr = pToggle->Toggle();
+				if (hr != S_OK)
+				{
+					console.error("UIA_TogglePatternId->Toggle失败");
+					return false;
+				}
+				return true;
+			}
+			else {
+				console.error("没有UIA_InvokePatternId与UIA_TogglePatternId接口");
+				return false;
+			}
+			
 			return false;
 		}
+		
+
 	}
 
 	//清空条件

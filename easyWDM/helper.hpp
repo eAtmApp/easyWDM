@@ -614,6 +614,90 @@ public:
 		keybd_event(VK_ESCAPE, 0, KEYEVENTF_KEYUP, 0); // 释放 ESC 键
 	}
 
+	//调用热键
+	static void call_hotkey(const char* args)
+	{
+		static etd::map<etd::string, BYTE> keyMap = {
+			{"backspace", VK_BACK},
+			{"tab", VK_TAB},
+			{"enter", VK_RETURN},
+			{"shift", VK_SHIFT},
+			{"ctrl", VK_CONTROL},
+			{"alt", VK_MENU},
+			{"pause", VK_PAUSE},
+			{"capslock", VK_CAPITAL},
+			{"escape", VK_ESCAPE},
+			{"space", VK_SPACE},
+			{"pageup", VK_PRIOR},
+			{"pagedown", VK_NEXT},
+			{"end", VK_END},
+			{"home", VK_HOME},
+			{"left", VK_LEFT},
+			{"up", VK_UP},
+			{"right", VK_RIGHT},
+			{"down", VK_DOWN},
+			{"insert", VK_INSERT},
+			{"delete", VK_DELETE},
+			{"del", VK_DELETE},
+			{"f1", VK_F1},
+			{"f2", VK_F2},
+			{"f3", VK_F3},
+			{"f4", VK_F4},
+			{"f5", VK_F5},
+			{"f6", VK_F6},
+			{"f7", VK_F7},
+			{"f8", VK_F8},
+			{"f9", VK_F9},
+			{"f10", VK_F10},
+			{"f11", VK_F11},
+			{"f12", VK_F12},
+			{"numlock", VK_NUMLOCK},
+			{"scrolllock", VK_SCROLL},
+			{"printscreen", VK_SNAPSHOT},
+			{"win", VK_LWIN},  // 左侧 Windows 键
+			{"apps", VK_APPS}, // 应用程序键
+		};
+
+		eString keys(args);
+		keys = keys.tolower();
+		auto arr = keys.split_string("+");
+		etd::vector<BYTE> keysCode;
+
+		bool is_error = false;
+
+		arr.forEach([&](eString& keyStr)
+		{
+			if (keyStr.size() == 1)
+			{
+				keyStr = keyStr.toupper();
+				BYTE bc = keyStr[0];
+				keysCode.push_back(bc);
+			}
+			else {
+				BYTE bc = 0;
+				if (keyMap.Lookup(keyStr,bc))
+				{
+					keysCode.push_back(bc);
+				}
+				else {
+					box.ShowInfo("不识别键盘信息:{}", keyStr);
+					is_error = true;
+				}
+			}
+		});
+
+		keysCode.forEach([](BYTE& b)
+		{
+			keybd_event(b, 0, 0, 0x3412259); // 按下 ESC 键
+			Sleep(10);
+		});
+
+		keysCode.forEach([](BYTE& b)
+		{
+			keybd_event(b, 0, KEYEVENTF_KEYUP, 0x3412259); // 释放 ESC 键
+			Sleep(10);
+		});
+	}
 
 	//StartButton
 	//TaskViewButton
@@ -671,12 +755,27 @@ public:
 				pressEscKey();
 			}
 			else {
+
+				auto hTaskBar = helper::getCurrentMonitorTaskBarWnd();
+				HWND hForeWnd;
+				DWORD dwForeID;
+				DWORD dwCurID;
+				hForeWnd = GetForegroundWindow();
+				dwCurID = GetCurrentThreadId();
+				//dwForeID = GetWindowThreadProcessId(hForeWnd, nullptr);
+				dwForeID = GetWindowThreadProcessId(hTaskBar, nullptr);
+				AttachThreadInput(dwCurID, dwForeID, TRUE);
+				ShowWindow(hTaskBar, SW_SHOWNORMAL);
+
 				console.time();
 				if (!buttonElement.ClickElement())
 				{
 					buttonElement.Clear();
 				}
 				console.timeEnd();
+
+				SetForegroundWindow(hTaskBar);
+				AttachThreadInput(dwCurID, dwForeID, FALSE);
 			}
 		}
 

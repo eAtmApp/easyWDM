@@ -235,6 +235,12 @@ bool easyWDM::initWDM()
             else if (optype == "null")	//啥也不作,只拦截此快捷键
             {
             }
+			else if (optype == "hotkey") //按下热键
+			{
+				etd::string param = item["param"];
+
+				helper::call_hotkey(param.c_str());
+			}
             else if (optype.empty())
             {
                 box.ShowError("此快捷键缺少操作类型,如不需要任何操作只作拦截用,请使用\"null\"");
