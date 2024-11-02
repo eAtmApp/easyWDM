@@ -20,8 +20,6 @@ public:
 	{
 		_pAutomation = src._pAutomation;
 		_pElement = src._pElement;
-		_hWnd = src._hWnd;
-		_dwProcessId = src._dwProcessId;
 	}
 
 	easy_uiautomation()
@@ -32,11 +30,9 @@ public:
 		FromHandle(hWnd);
 	}
 
-	easy_uiautomation(CComPtr<IUIAutomation> pAutomation, CComPtr<IUIAutomationElement> pElement, DWORD dwProcessId, HWND hWnd)
+	easy_uiautomation(CComPtr<IUIAutomation> pAutomation, CComPtr<IUIAutomationElement> pElement)
 	{
 		Clear();
-		_dwProcessId = dwProcessId;
-		_hWnd = hWnd;
 		_pAutomation = pAutomation;
 		_pElement = pElement;
 	}
@@ -63,28 +59,8 @@ public:
 		}
 
 		auto hr = _pAutomation->ElementFromHandle(hWnd, &_pElement);
-
-		if (_pElement)
-		{
-			_hWnd = hWnd;
-			::GetWindowThreadProcessId(hWnd, &_dwProcessId);
-		}
-
+		
 		return _pElement != nullptr;
-	}
-
-	//检测对象窗口是否正常
-	bool	CheckObject()
-	{
-		if (!::IsWindow(_hWnd)) return false;
-
-		DWORD dwProcessId = 0;
-		::GetWindowThreadProcessId(_hWnd, &dwProcessId);
-		if (dwProcessId != _dwProcessId)
-		{
-			return false;
-		}
-		return true;
 	}
 
 	//按照条件查找元素
@@ -93,7 +69,7 @@ public:
 		CComPtr<IUIAutomationElement> pElement = nullptr;
 		auto hr = _pElement->FindFirst(TreeScope_Subtree, _pCond, &pElement);
 
-		easy_uiautomation ele(_pAutomation, pElement, _dwProcessId, _hWnd);
+		easy_uiautomation ele(_pAutomation, pElement);
 
 		return ele;
 	}
@@ -123,13 +99,14 @@ public:
 			if (hr != S_OK)
 			{
 				console.error("UIA_InvokePatternId->Invoke失败");
+				return false;
 			}
 			return true;
 		}
 		else {
 			console.error("没有UIA_InvokePatternId接口");
+			return false;
 		}
-		return false;
 	}
 
 	//清空条件
@@ -177,7 +154,4 @@ private:
 	CComPtr<IUIAutomationElement> _pElement = nullptr;
 	CComPtr<IUIAutomationCondition> _pCond = nullptr;
 	CComPtr<IUIAutomation> _pAutomation = nullptr;
-
-	HWND	_hWnd = nullptr;
-	DWORD	_dwProcessId = 0;
 };

@@ -607,41 +607,101 @@ public:
 	static void pressEscKey() {
 		// 模拟按下 ESC 键
 		keybd_event(VK_ESCAPE, 0, 0, 0); // 按下 ESC 键
-		
+
 		::Sleep(10);
 
 		// 模拟释放 ESC 键
 		keybd_event(VK_ESCAPE, 0, KEYEVENTF_KEYUP, 0); // 释放 ESC 键
 	}
 
+
 	//StartButton
 	//TaskViewButton
-	static void TaskBar_Button(const char* butId, bool async = true)
+	static void TaskBar_Button(const char* uiId, bool async = true)
 	{
 		if (async)
 		{
-			worker.async(TaskBar_Button, butId,false);
+			worker.async(TaskBar_Button, uiId, false);
 			return;
 		}
 
-		auto hTaskBar = helper::getCurrentMonitorTaskBarWnd();
-		if (hTaskBar)
+		//得到当前监视器/按钮对象
+		//用静态map存储对象
+		auto get_element_object = [&]() -> easy_uiautomation&
 		{
-			easy_uiautomation uiAuto(hTaskBar);
-			if (uiAuto)
+			static etd::map<eString, easy_uiautomation> mapUiAuto;
+			eString csMapId;
+			auto hMonitor = getCurrentMonitor();
+			csMapId.Format("{}_{}", uiId, (DWORD)hMonitor);
+
+			auto& element = mapUiAuto[csMapId];
+
+			if (!element)
 			{
-				uiAuto.AddCond(UIA_AutomationIdPropertyId, etd::string::ansi_unicode(butId).c_str());
-				auto but = uiAuto.FindElement();
-				if (!but) return;
-				if (!but.ToggleState())
+				console.time();
+				auto hTaskBar = helper::getCurrentMonitorTaskBarWnd();
+				easy_uiautomation uiAuto(hTaskBar);
+				if (uiAuto)
 				{
-					but.ClickElement();
+					uiAuto.AddCond(UIA_AutomationIdPropertyId, etd::string::ansi_unicode(uiId).c_str());
+					element = uiAuto.FindElement();
+				}
+				console.timeEnd();
+
+				if (!element)
+				{
+					console.error("获取新对象失败");
 				}
 				else {
-					pressEscKey();
+					console.log("获取新对象成功");
 				}
 			}
+			else {
+				console.log("已有对象");
+			}
+			return element;
+		};
+
+		auto& buttonElement = get_element_object();
+		if (buttonElement)
+		{
+			if (buttonElement.ToggleState())
+			{
+				console.log("ToggleState=true");
+				pressEscKey();
+			}
+			else {
+				console.time();
+				if (!buttonElement.ClickElement())
+				{
+					buttonElement.Clear();
+				}
+				console.timeEnd();
+			}
 		}
+
+		/*
+				auto hTaskBar = helper::getCurrentMonitorTaskBarWnd();
+				if (hTaskBar)
+				{
+					console.time(uiId);
+					easy_uiautomation uiAuto(hTaskBar);
+					if (uiAuto)
+					{
+						uiAuto.AddCond(UIA_AutomationIdPropertyId, etd::string::ansi_unicode(uiId).c_str());
+						auto but = uiAuto.FindElement();
+						if (!but) return;
+						if (!but.ToggleState())
+						{
+							auto ret=but.ClickElement();
+							console.log("click_{}", ret);
+						}
+						else {
+							pressEscKey();
+						}
+					}
+					console.timeEnd(uiId);
+				}*/
 	}
 
 	static void	show_start(bool async = true)

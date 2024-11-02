@@ -57,6 +57,9 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
 {
 	CoInitializeEx(NULL, COINIT_MULTITHREADED);
 
+/*
+	helper::show_start(false);
+	return 0;*/
 
 /*
 	auto hTaskBar = helper::getCurrentMonitorTaskBarWnd();
