@@ -675,7 +675,7 @@ public:
 			}
 			else {
 				BYTE bc = 0;
-				if (keyMap.Lookup(keyStr,bc))
+				if (keyMap.Lookup(keyStr, bc))
 				{
 					keysCode.push_back(bc);
 				}
@@ -803,7 +803,7 @@ public:
 				}*/
 	}
 
-	static void	show_start(bool async = true)
+	static void	_show_start_bak(bool async = true)
 	{
 		TaskBar_Button("StartButton", async);
 	}
@@ -866,5 +866,86 @@ public:
 
 		EnumDisplayMonitors(NULL, NULL, (MONITORENUMPROC)MonitorEnumProc, (LPARAM)&infos);
 		return (int)infos.size();
+	}
+
+
+	//当前监视器开始菜单按钮句柄
+	static HWND		GetCurrentMonitorStartMenuWnd()
+	{
+		HWND hResult = nullptr;
+
+		//查找所有开始菜单按钮
+		auto _findStart = [](std::vector<HWND>& vec, const char* clsName)
+		{
+			HWND hLastWnd = nullptr;
+			do
+			{
+				hLastWnd = FindWindowExA(nullptr, hLastWnd, clsName, nullptr);
+				if (hLastWnd)
+				{
+					HWND hWnd = ::FindWindowExA(hLastWnd, nullptr, "Start", "开始");
+					if (hWnd) vec.push_back(hWnd);
+				}
+			} while (hLastWnd);
+		};
+
+		//Shell_TrayWnd,Shell_SecondaryTrayWnd;
+		//枚举所有开始按钮
+		std::vector<HWND> vec;
+		_findStart(vec, "Shell_TrayWnd");
+		_findStart(vec, "Shell_SecondaryTrayWnd");
+
+		//得到当前监视器句柄
+		auto hMon = getCurrentMonitor();
+
+		for (auto wnd : vec)
+		{
+			if (MonitorFromWindow(wnd, MONITOR_DEFAULTTONEAREST) == hMon)
+			{
+				hResult = wnd;
+				break;
+			}
+		}
+		return hResult;
+	}
+
+	//显示开始菜单
+	static void show_start(bool async = true)
+	{
+		if (async)
+		{
+			worker.async(show_start, false);
+			return;
+		}
+
+		console.time();
+
+		HWND hStartWnd = GetCurrentMonitorStartMenuWnd();
+		if (!hStartWnd) return;
+
+		HWND hWnd = GetParent(hStartWnd);
+		HWND hForeWnd;
+		DWORD dwForeID;
+		DWORD dwCurID;
+		hForeWnd = GetForegroundWindow();
+		dwCurID = GetCurrentThreadId();
+		dwForeID = GetWindowThreadProcessId(hForeWnd, nullptr);
+		AttachThreadInput(dwCurID, dwForeID, TRUE);
+		ShowWindow(hWnd, SW_SHOWNORMAL);
+		SetWindowPos(hWnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
+		SetWindowPos(hWnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
+		SetForegroundWindow(hWnd);
+		AttachThreadInput(dwCurID, dwForeID, FALSE);
+
+		//UIAutoInvoke(hStartWnd);
+
+		easy_uiautomation ui(hStartWnd);
+		ui.ClickElement();
+		
+		console.timeEnd();
+
+		//std::thread thread(thread_proc);
+		//thread.detach();
+		//return true;
 	}
 };
