@@ -126,7 +126,9 @@ void easyWDM::refreshMonitor()
     {
         auto& rct = info.rcMonitor;
         //console.log("显示器: {:08X},{}*{} - {}*{}", (DWORD)info.hMonitor,rct.left,rct.top,rct.right,rct.bottom);
+        #if SHOW_DEBUG_LOG==1
         console.log("显示器:{:08X},{}", (DWORD)info.hMonitor, rct);
+        #endif
     });
 
 }
@@ -215,10 +217,10 @@ bool easyWDM::initWDM()
             {
                 helper::ShowDisktop();
             }
-			else if (optype == "task")	//显示任务
-			{
-				helper::show_taskview();
-			}
+            else if (optype == "task")	//显示任务
+            {
+                helper::show_taskview();
+            }
             else if (optype == "start") //显示开始菜单
             {
                 helper::show_start();
@@ -235,12 +237,12 @@ bool easyWDM::initWDM()
             else if (optype == "null")	//啥也不作,只拦截此快捷键
             {
             }
-			else if (optype == "hotkey") //按下热键
-			{
-				etd::string param = item["param"];
+            else if (optype == "hotkey") //按下热键
+            {
+                etd::string param = item["param"];
 
-				helper::call_hotkey(param.c_str());
-			}
+                helper::call_hotkey(param.c_str());
+            }
             else if (optype.empty())
             {
                 box.ShowError("此快捷键缺少操作类型,如不需要任何操作只作拦截用,请使用\"null\"");
@@ -261,7 +263,7 @@ bool easyWDM::initWDM()
     //SetHotkey("win+d", helper::ShowDisktop);
     //SetHotkey("win+r", std::bind(helper::ShowRunDlg, false));
     //SetHotkey("win", helper::show_StartMenu);
-	
+
     //键盘钩子
     if (_config["hook_key"])
     {

@@ -12,20 +12,54 @@ bool easyWDM::HandlerHotkey(UCHAR ukey, DWORD flags_)
 
     auto it = _map_hotkey.find(dwFlags);
     if (it == _map_hotkey.end()) return false;
-    auto result=it->second();
+    auto result = it->second();
     return result;
+}
+
+void outkeylog(UINT uType, UCHAR uKey)
+{
+    eString estr;
+    switch (uType)
+    {
+        case WM_KEYDOWN:
+            estr = "按下";
+            break;
+        case WM_KEYUP:
+            estr = "弹起";
+            break;
+        default:
+            estr.Format("{:X}", uType);
+            break;
+    }
+
+    // 获取按键的字符表示
+    char buffer[256] = {0};
+    GetKeyNameTextA(MapVirtualKeyA(uKey, MAPVK_VK_TO_VSC) << 16, buffer, sizeof(buffer));
+    eString esKey(buffer);
+    if (esKey.empty())
+    {
+        if (uKey == 0x5B) esKey = "Win";
+        else {
+            esKey.Format("{:X}", uKey);
+        }
+    }
+
+    console.log("{}: {}", estr, esKey);
 }
 
 bool easyWDM::KeyMessage(UINT uType, KBDLLHOOKSTRUCT* pHook)
 {
     if (pHook->dwExtraInfo == 0x3412259)
     {
+        #if SHOW_DEBUG_LOG==1
         console.log("收到标志");
+        #endif // SHOW_DEBUG_LOG==1
+
         return false;
     }
 
     UCHAR uKey = (UCHAR)pHook->vkCode;
-    
+
     //标识是否处理了
     bool isProcessed = false;
 
@@ -43,6 +77,7 @@ bool easyWDM::KeyMessage(UINT uType, KBDLLHOOKSTRUCT* pHook)
             is_sys_key = true;
         }
     }
+    outkeylog(uType, uKey);
 
     //记录各个组合键真实状态-省去中间取值环节
     auto down_count = key_status.set_status(uType, uKey);
@@ -51,7 +86,7 @@ bool easyWDM::KeyMessage(UINT uType, KBDLLHOOKSTRUCT* pHook)
     if (uType == WM_KEYDOWN && ((uKey >= '0' && uKey <= '9') || (uKey >= 'A' && uKey <= 'Z') || (uKey >= VK_F1 && uKey <= VK_F24)))
     {
         DWORD hotkey_flags = key_status.get_hotkey_flags();
-        
+
         if (uKey >= VK_F1 && uKey <= VK_F24)
         {
             if (HandlerHotkey(uKey, hotkey_flags))
@@ -77,7 +112,7 @@ bool easyWDM::KeyMessage(UINT uType, KBDLLHOOKSTRUCT* pHook)
             keybd_event(VK_LWIN, 0, KEYEVENTF_EXTENDEDKEY | 0, 0x3412259);
             //keybd_event(VK_LWIN, 0, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0);
         }
-        
+
         if (uKey == VK_LWIN)
         {
             //单按下过滤
@@ -120,11 +155,15 @@ bool easyWDM::KeyMessage(UINT uType, KBDLLHOOKSTRUCT* pHook)
                 }
                 return false;
             }
-            else if ((uType == WM_KEYUP) && last_tick)
+            else if ((uType == WM_KEYUP) && last_tick && key_status._last_key==listenKey)
             {
                 bool go_event = false;
                 //间隔时间小于200ms,且期间没有按下过其它按键
-                if (::GetTickCount64() - last_tick < 200 && last_tick == key_status._last_down_tick) go_event = true;
+                if (::GetTickCount64() - last_tick < 200 && last_tick == key_status._last_down_tick)
+                {
+                    console.log("单键事件");
+                    go_event = true;
+                }
                 last_tick = 0;
                 return go_event;
             }
@@ -141,7 +180,11 @@ bool easyWDM::KeyMessage(UINT uType, KBDLLHOOKSTRUCT* pHook)
     static _hotkey_single _single_shift(VK_LSHIFT, FLAGS_SHIFT);
     static _hotkey_single _single_ctrl(VK_LCONTROL, FLAGS_CTRL);
 
-    if (_single_win.is_event(uType, uKey)) HandlerHotkey(0, _single_win.listenFlags);
+    if (_single_win.is_event(uType, uKey))
+    {
+        console.log("_single_win.is_event(uType, uKey)");
+        HandlerHotkey(0, _single_win.listenFlags);
+    }
     else if (_single_alt.is_event(uType, uKey)) HandlerHotkey(0, _single_alt.listenFlags);
     else if (_single_shift.is_event(uType, uKey)) HandlerHotkey(0, _single_shift.listenFlags);
     else if (_single_ctrl.is_event(uType, uKey)) HandlerHotkey(0, _single_ctrl.listenFlags);
